@@ -29,10 +29,11 @@
 import numpy as np
 import time
 import h5py
-
+from configparser import ConfigParser
+import argparse
+from pathlib import Path
 import dedalus.public as de 
 from dedalus.extras import flow_tools
-
 import logging
 root = logging.root
 for h in root.handlers:
@@ -40,10 +41,20 @@ for h in root.handlers:
     
 logger = logging.getLogger(__name__)
 
-eta = 1./1.444 # R1/R2
-alpha = 3.13   # vertical wavenumber
-Re = 800.       # in units of R1*Omega1*delta/nu
-mu = 0.        # Omega2/Omega1
+# Parses .cfg filename passed to script
+parser = argparse.ArgumentParser(description='Passes filename')
+parser.add_argument('filename', metavar='Rc', type=str, help='Provides config file to parser')
+args = parser.parse_args()
+filename = Path(vars(args)['filename'])
+outbase = Path("data")
+
+# Parse .cfg file to set global parameters for script
+config = ConfigParser()
+config.read(str(filename))
+alpha = config.getfloat('parameters','alpha')
+eta = eval(config.get('parameters','eta'))
+Re = config.getfloat('parameters','Re')
+mu = config.getfloat('parameters','mu')
 
 # computed quantitites
 omega_in = 1.
@@ -54,8 +65,8 @@ height = 2.*np.pi/alpha
 v_l = 1. # by default, we set v_l to 1.
 v_r = omega_out*r_out
 
-r_basis = de.Chebyshev('r', 128, interval=(r_in, r_out), dealias=3/2)
-z_basis = de.Fourier('z', 128, interval=(0., height), dealias=3/2)
+r_basis = de.Chebyshev('r', 32, interval=(r_in, r_out), dealias=3/2)
+z_basis = de.Fourier('z', 32, interval=(0., height), dealias=3/2)
 domain = de.Domain([z_basis, r_basis], grid_dtype=np.float64)
 
 TC = de.IVP(domain, variables=['p', 'u', 'v', 'w', 'ur', 'vr', 'wr'], ncc_cutoff=1e-8)
