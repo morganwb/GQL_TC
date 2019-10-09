@@ -34,6 +34,7 @@ import argparse
 from pathlib import Path
 import dedalus.public as de 
 from dedalus.extras import flow_tools
+from dedalus.tools  import post
 import logging
 root = logging.root
 for h in root.handlers:
@@ -56,6 +57,11 @@ eta = eval(config.get('parameters','eta'))
 Re = config.getfloat('parameters','Re')
 mu = config.getfloat('parameters','mu')
 
+threeD = config.getint('parameters','threeD')
+
+nx = config.getint('parameters','nx')
+nz = config.getint('parameters','nz')
+
 # computed quantitites
 omega_in = 1.
 omega_out = mu * omega_in
@@ -65,8 +71,8 @@ height = 2.*np.pi/alpha
 v_l = 1. # by default, we set v_l to 1.
 v_r = omega_out*r_out
 
-r_basis = de.Chebyshev('r', 32, interval=(r_in, r_out), dealias=3/2)
-z_basis = de.Fourier('z', 32, interval=(0., height), dealias=3/2)
+r_basis = de.Chebyshev('r', nx, interval=(r_in, r_out), dealias=3/2)
+z_basis = de.Fourier('z', nz, interval=(0., height), dealias=3/2)
 domain = de.Domain([z_basis, r_basis], grid_dtype=np.float64)
 
 TC = de.IVP(domain, variables=['p', 'u', 'v', 'w', 'ur', 'vr', 'wr'], ncc_cutoff=1e-8)
@@ -76,10 +82,34 @@ TC.parameters['v_l'] = v_l
 TC.parameters['v_r'] = v_r
 mu = TC.parameters['v_r']/TC.parameters['v_l'] * eta
 
-TC.add_equation("r*ur + u + r*dz(w) = 0")
-TC.add_equation("r*r*dt(u) - r*r*nu*dr(ur) - r*nu*ur - r*r*nu*dz(dz(u)) + nu*u + r*r*dr(p) = -r*r*u*ur - r*r*w*dz(u) + r*v*v")
-TC.add_equation("r*r*dt(v) - r*r*nu*dr(vr) - r*nu*vr - r*r*nu*dz(dz(v)) + nu*v  = -r*r*u*vr - r*r*w*dz(v) - r*u*v")
-TC.add_equation("r*dt(w) - r*nu*dr(wr) - nu*wr - r*nu*dz(dz(w)) + r*dz(p) = -r*u*wr - r*w*dz(w)")
+# adds substitutions
+
+TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
+TC.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
+TC.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
+TC.substitutions['Lap_z'] = "Lap_s(w, wr)"
+
+TC.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f)"
+TC.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
+TC.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
+TC.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
+
+#TC.add_equation("r*ur + u + r*dz(w) = 0")
+
+# adds different equations to TC object depending on whether solving 2D or 3D equations
+
+if threeD == 1:
+    TC.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
+    TC.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+    TC.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p) = -UdotGrad_t")
+    TC.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
+else:
+    TC.add_equation("r*ur + u + r*dz(w) = 0")
+    TC.add_equation("r*r*dt(u) - r*r*nu*dr(ur) - r*nu*ur - r*r*nu*dz(dz(u)) + nu*u + r*r*dr(p) = -r*r*u*ur - r*r*w*dz(u) + r*v*v")
+    TC.add_equation("r*r*dt(v) - r*r*nu*dr(vr) - r*nu*vr - r*r*nu*dz(dz(v)) + nu*v  = -r*r*u*vr - r*r*w*dz(v) - r*u*v")
+    TC.add_equation("r*dt(w) - r*nu*dr(wr) - nu*wr - r*nu*dz(dz(w)) + r*dz(p) = -r*u*wr - r*w*dz(w)")
+
+
 TC.add_equation("ur - dr(u) = 0")
 TC.add_equation("vr - dr(v) = 0")
 TC.add_equation("wr - dr(w) = 0")
@@ -157,19 +187,24 @@ CFL = flow_tools.CFL(IVP, initial_dt=1e-3, cadence=5, safety=0.3,
                      max_change=1.5, min_change=0.5)
 CFL.add_velocities(('u', 'w'))
 
+analysis_tasks = []
+
 analysis1 = IVP.evaluator.add_file_handler("scalar_data", iter=10)
 analysis1.add_task("integ(0.5 * (u*u + v*v + w*w))", name="total kinetic energy")
 analysis1.add_task("integ(0.5 * (u*u + w*w))", name="meridional kinetic energy")
 analysis1.add_task("integ((u*u)**0.5)", name='u_rms')
 analysis1.add_task("integ((w*w)**0.5)", name='w_rms')
+analysis_tasks.append(analysis1)
 
 # Snapshots every half an inner rotation period
 analysis2 = IVP.evaluator.add_file_handler('snapshots',sim_dt=0.5*period, max_size=2**30)
 analysis2.add_system(IVP.state, layout='g')
+analysis_tasks.append(analysis2)
 
 # radial profiles every 100 timestpes
 analysis3 = IVP.evaluator.add_file_handler("radial_profiles", iter=100)
 analysis3.add_task("integ(r*v, 'z')", name='Angular Momentum')
+analysis_tasks.append(analysis3)
 
 dt = CFL.compute_dt()
 # Main loop
@@ -188,4 +223,8 @@ end_time = time.time()
 logger.info('Total time: %f' %(end_time-start_time))
 logger.info('Iterations: %i' %IVP.iteration)
 logger.info('Average timestep: %f' %(IVP.sim_time/IVP.iteration))
+
+for task in analysis_tasks:
+    logger.info(task.base_path)
+    post.merge_analysis(task.base_path)
 
