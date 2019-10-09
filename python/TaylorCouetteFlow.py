@@ -61,6 +61,7 @@ threeD = config.getint('parameters','threeD')
 
 nx = config.getint('parameters','nx')
 nz = config.getint('parameters','nz')
+ntheta = config.getint('parameters','ntheta')
 
 # computed quantitites
 omega_in = 1.
@@ -71,10 +72,15 @@ height = 2.*np.pi/alpha
 v_l = 1. # by default, we set v_l to 1.
 v_r = omega_out*r_out
 
+
+theta_basis = de.Fourier('theta', ntheta, interval=(0., 2*np.pi), dealias=3/2)
 r_basis = de.Chebyshev('r', nx, interval=(r_in, r_out), dealias=3/2)
 z_basis = de.Fourier('z', nz, interval=(0., height), dealias=3/2)
-domain = de.Domain([z_basis, r_basis], grid_dtype=np.float64)
 
+if threeD == 1:
+    domain = de.Domain([z_basis, r_basis, theta_basis], grid_dtype=np.float64)
+else:
+    domain = de.Domain([z_basis, r_basis], grid_dtype=np.float64)
 TC = de.IVP(domain, variables=['p', 'u', 'v', 'w', 'ur', 'vr', 'wr'], ncc_cutoff=1e-8)
 TC.meta[:]['r']['dirichlet'] = True
 TC.parameters['nu'] = 1./Re
@@ -83,7 +89,7 @@ TC.parameters['v_r'] = v_r
 mu = TC.parameters['v_r']/TC.parameters['v_l'] * eta
 
 # adds substitutions
-
+"""
 TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
 TC.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
 TC.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
@@ -93,9 +99,7 @@ TC.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f
 TC.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
 TC.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
 TC.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
-
-#TC.add_equation("r*ur + u + r*dz(w) = 0")
-
+"""
 # adds different equations to TC object depending on whether solving 2D or 3D equations
 
 if threeD == 1:
