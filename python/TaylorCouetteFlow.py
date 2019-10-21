@@ -57,11 +57,14 @@ eta = eval(config.get('parameters','eta'))
 Re = config.getfloat('parameters','Re')
 mu = config.getfloat('parameters','mu')
 
-threeD = config.getint('parameters','threeD')
-
 nx = config.getint('parameters','nx')
 nz = config.getint('parameters','nz')
 ntheta = config.getint('parameters','ntheta')
+
+if ntheta == 0:
+	threeD = False
+else:
+	threeD = True
 
 # computed quantitites
 omega_in = 1.
@@ -73,38 +76,80 @@ v_l = 1. # by default, we set v_l to 1.
 v_r = omega_out*r_out
 
 
-theta_basis = de.Fourier('theta', ntheta, interval=(0., 2*np.pi), dealias=3/2)
 r_basis = de.Chebyshev('r', nx, interval=(r_in, r_out), dealias=3/2)
 z_basis = de.Fourier('z', nz, interval=(0., height), dealias=3/2)
 
-if threeD == 1:
-    domain = de.Domain([z_basis, r_basis, theta_basis], grid_dtype=np.float64)
+if threeD == True:
+    theta_basis = de.Fourier('theta', ntheta, interval=(0., 2*np.pi), dealias=3/2)
+    domain = de.Domain([z_basis, theta_basis, r_basis], grid_dtype=np.float64)
 else:
     domain = de.Domain([z_basis, r_basis], grid_dtype=np.float64)
+
 TC = de.IVP(domain, variables=['p', 'u', 'v', 'w', 'ur', 'vr', 'wr'], ncc_cutoff=1e-8)
 TC.meta[:]['r']['dirichlet'] = True
 TC.parameters['nu'] = 1./Re
 TC.parameters['v_l'] = v_l
 TC.parameters['v_r'] = v_r
+TC.parameters['eta'] = eta
 mu = TC.parameters['v_r']/TC.parameters['v_l'] * eta
+TC.parameters['mu'] = mu
 
 # adds substitutions
-"""
-TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
-TC.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
-TC.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
-TC.substitutions['Lap_z'] = "Lap_s(w, wr)"
 
-TC.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f)"
-TC.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
-TC.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
-TC.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
-"""
+TC.substitutions['A'] = '(1/eta - 1.)*(mu-eta**2)/(1-eta**2)'
+TC.substitutions['B'] = 'eta*(1-mu)/((1-eta)*(1-eta**2))'
+TC.substitutions['v0'] = 'A*r + B/r'
+TC.substitutions['dv0dr'] = 'A - B/(r*r)'
+
+if threeD == 1:
+    TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
+    TC.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
+    TC.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
+    TC.substitutions['Lap_z'] = "Lap_s(w, wr)"
+    TC.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f)"
+    TC.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
+    TC.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
+    TC.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
+else:
+    TC.substitutions['Lap_s(f, f_r)'] = "r*dr(f_r) + f_r + r*dz(dz(f))"
+    TC.substitutions['Lap_r'] = "r*Lap_s(u, ur) - u"
+    TC.substitutions['Lap_t'] = "r*Lap_s(v, vr) - v"
+    TC.substitutions['Lap_z'] = "Lap_s(w,wr)"
+    TC.substitutions['UdotGrad_s(f, f_r)'] = "r*u*f_r + r*w*dz(f)"
+    TC.substitutions['UdotGrad_r'] = "r*UdotGrad_s(u, ur) - r*v*v"
+    TC.substitutions['UdotGrad_t'] = "r*UdotGrad_s(v, vr) + r*u*v"
+    TC.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
+
 # adds different equations to TC object depending on whether solving 2D or 3D equations
 
 if threeD == 1:
     TC.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
-    TC.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+else:
+    TC.add_equation("r*ur + u + r*dz(w) = 0")
+
+r_mom = "r*r*dt(u) - nu*Lap_r - 2*r*v0*v"
+if threeD == 1:
+    r_mom += "+ r*v0*dtheta(u)"
+r_mom += "+ r*r*dr(p) = r*v0*v0 - UdotGrad_r"
+TC.add_equation(r_mom)
+
+theta_mom = "r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u"
+if threeD == 1:
+    theta_mom += "+ r*v0*dtheta(v) + r*dtheta(p)"
+theta_mom += " = -UdotGrad_t"
+TC.add_equation(theta_mom)
+
+if threeD == 1:
+    TC.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
+else:
+    TC.add_equation("  r*dt(w) - nu*Lap_z +   r*dz(p)                  = -UdotGrad_z")
+
+
+"""
+if threeD == 1:
+
+    TC.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
+    TC.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v*v - UdotGrad_r")
     TC.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p) = -UdotGrad_t")
     TC.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
 else:
@@ -112,7 +157,7 @@ else:
     TC.add_equation("r*r*dt(u) - r*r*nu*dr(ur) - r*nu*ur - r*r*nu*dz(dz(u)) + nu*u + r*r*dr(p) = -r*r*u*ur - r*r*w*dz(u) + r*v*v")
     TC.add_equation("r*r*dt(v) - r*r*nu*dr(vr) - r*nu*vr - r*r*nu*dz(dz(v)) + nu*v  = -r*r*u*vr - r*r*w*dz(v) - r*u*v")
     TC.add_equation("r*dt(w) - r*nu*dr(wr) - nu*wr - r*nu*dz(dz(w)) + r*dz(p) = -r*u*wr - r*w*dz(w)")
-
+"""
 
 TC.add_equation("ur - dr(u) = 0")
 TC.add_equation("vr - dr(v) = 0")
@@ -139,7 +184,7 @@ period = 2*np.pi/omega1
 
 ts = de.timesteppers.RK443
 IVP = TC.build_solver(ts)
-IVP.stop_sim_time = 15.*period
+IVP.stop_sim_time = 1.*period
 IVP.stop_wall_time = np.inf
 IVP.stop_iteration = np.inf
 
@@ -161,16 +206,16 @@ v.differentiate('r',out=vr)
 
 
 def filter_field(field,frac=0.5):
-    dom = field.domain
-    local_slice = dom.dist.coeff_layout.slices(scales=dom.dealias)
-    coeff = []
-    for i in range(dom.dim)[::-1]:
-        coeff.append(np.linspace(0,1,dom.global_coeff_shape[i],endpoint=False))
-    cc = np.meshgrid(*coeff)
-    
-    field_filter = np.zeros(dom.local_coeff_shape,dtype='bool')
-    for i in range(dom.dim):
-        field_filter = field_filter | (cc[i][local_slice] > frac)
+    field.require_coeff_space()
+    dom = field.domain                                                                                                                                                      
+    local_slice = dom.dist.coeff_layout.slices(scales=dom.dealias)                                                                                                          
+    coeff = []                                                                                                                                                              
+    for n in dom.global_coeff_shape:
+        coeff.append(np.linspace(0,1,n,endpoint=False))                                                                                             
+    cc = np.meshgrid(*coeff,indexing='ij')
+    field_filter = np.zeros(dom.local_coeff_shape,dtype='bool')                                                                                                             
+    for i in range(dom.dim):                                                                                                                                                
+        field_filter = field_filter | (cc[i][local_slice] > frac)                                                                                                           
     field['c'][field_filter] = 0j
 
 
@@ -189,7 +234,11 @@ w.differentiate('r',out=wr)
 
 CFL = flow_tools.CFL(IVP, initial_dt=1e-3, cadence=5, safety=0.3,
                      max_change=1.5, min_change=0.5)
-CFL.add_velocities(('u', 'w'))
+
+if threeD == 1:
+    CFL.add_velocities(('u', 'v', 'w'))
+else:
+    CFL.add_velocities(('u', 'w'))
 
 analysis_tasks = []
 
@@ -232,3 +281,5 @@ for task in analysis_tasks:
     logger.info(task.base_path)
     post.merge_analysis(task.base_path)
 
+set_paths = list(Path("snapshots/snapshots_s1").glob("snapshots_s1*.h5"))
+post.merge_sets("snapshots/snapshots_s1.h5", set_paths, cleanup=True)
