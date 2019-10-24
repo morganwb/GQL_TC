@@ -79,7 +79,7 @@ v_r = omega_out*r_out
 r_basis = de.Chebyshev('r', nx, interval=(r_in, r_out), dealias=3/2)
 z_basis = de.Fourier('z', nz, interval=(0., height), dealias=3/2)
 
-if threeD == True:
+if threeD:
     theta_basis = de.Fourier('theta', ntheta, interval=(0., 2*np.pi), dealias=3/2)
     domain = de.Domain([z_basis, theta_basis, r_basis], grid_dtype=np.float64)
 else:
@@ -101,7 +101,7 @@ TC.substitutions['B'] = 'eta*(1-mu)/((1-eta)*(1-eta**2))'
 TC.substitutions['v0'] = 'A*r + B/r'
 TC.substitutions['dv0dr'] = 'A - B/(r*r)'
 
-if threeD == 1:
+if threeD:
     TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
     TC.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
     TC.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
@@ -122,48 +122,38 @@ else:
 
 # adds different equations to TC object depending on whether solving 2D or 3D equations
 
-if threeD == 1:
+if threeD:
     TC.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
 else:
     TC.add_equation("r*ur + u + r*dz(w) = 0")
 
 r_mom = "r*r*dt(u) - nu*Lap_r - 2*r*v0*v"
-if threeD == 1:
+if threeD:
     r_mom += "+ r*v0*dtheta(u)"
 r_mom += "+ r*r*dr(p) = r*v0*v0 - UdotGrad_r"
 TC.add_equation(r_mom)
 
 theta_mom = "r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u"
-if threeD == 1:
+if threeD:
     theta_mom += "+ r*v0*dtheta(v) + r*dtheta(p)"
 theta_mom += " = -UdotGrad_t"
 TC.add_equation(theta_mom)
 
-if threeD == 1:
+if threeD:
     TC.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
 else:
     TC.add_equation("  r*dt(w) - nu*Lap_z +   r*dz(p)                  = -UdotGrad_z")
-
-
-"""
-if threeD == 1:
-
-    TC.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
-    TC.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v*v - UdotGrad_r")
-    TC.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p) = -UdotGrad_t")
-    TC.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
-else:
-    TC.add_equation("r*ur + u + r*dz(w) = 0")
-    TC.add_equation("r*r*dt(u) - r*r*nu*dr(ur) - r*nu*ur - r*r*nu*dz(dz(u)) + nu*u + r*r*dr(p) = -r*r*u*ur - r*r*w*dz(u) + r*v*v")
-    TC.add_equation("r*r*dt(v) - r*r*nu*dr(vr) - r*nu*vr - r*r*nu*dz(dz(v)) + nu*v  = -r*r*u*vr - r*r*w*dz(v) - r*u*v")
-    TC.add_equation("r*dt(w) - r*nu*dr(wr) - nu*wr - r*nu*dz(dz(w)) + r*dz(p) = -r*u*wr - r*w*dz(w)")
-"""
 
 TC.add_equation("ur - dr(u) = 0")
 TC.add_equation("vr - dr(v) = 0")
 TC.add_equation("wr - dr(w) = 0")
 
-r = domain.grid(1, scales=domain.dealias)
+if threeD:
+    r_index = 2
+else:
+    r_index = 1
+
+r = domain.grid(r_index, scales=domain.dealias)
 z = domain.grid(0, scales=domain.dealias)
  
 p_analytic = (eta/(1-eta**2))**2 * (-1./(2*r**2*(1-eta)**2) -2*np.log(r) +0.5*r**2 * (1.-eta)**2)
@@ -184,7 +174,7 @@ period = 2*np.pi/omega1
 
 ts = de.timesteppers.RK443
 IVP = TC.build_solver(ts)
-IVP.stop_sim_time = 1.*period
+IVP.stop_sim_time = 10.*period
 IVP.stop_wall_time = np.inf
 IVP.stop_iteration = np.inf
 
@@ -235,7 +225,7 @@ w.differentiate('r',out=wr)
 CFL = flow_tools.CFL(IVP, initial_dt=1e-3, cadence=5, safety=0.3,
                      max_change=1.5, min_change=0.5)
 
-if threeD == 1:
+if threeD:
     CFL.add_velocities(('u', 'v', 'w'))
 else:
     CFL.add_velocities(('u', 'w'))
@@ -280,6 +270,3 @@ logger.info('Average timestep: %f' %(IVP.sim_time/IVP.iteration))
 for task in analysis_tasks:
     logger.info(task.base_path)
     post.merge_analysis(task.base_path)
-
-set_paths = list(Path("snapshots/snapshots_s1").glob("snapshots_s1*.h5"))
-post.merge_sets("snapshots/snapshots_s1.h5", set_paths, cleanup=True)
