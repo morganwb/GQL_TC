@@ -174,7 +174,7 @@ period = 2*np.pi/omega1
 
 ts = de.timesteppers.RK443
 IVP = TC.build_solver(ts)
-IVP.stop_sim_time = 10.*period
+IVP.stop_sim_time = 5.*period
 IVP.stop_wall_time = np.inf
 IVP.stop_iteration = np.inf
 
