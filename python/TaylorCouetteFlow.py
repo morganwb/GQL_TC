@@ -270,3 +270,4 @@ logger.info('Average timestep: %f' %(IVP.sim_time/IVP.iteration))
 for task in analysis_tasks:
     logger.info(task.base_path)
     post.merge_analysis(task.base_path)
+    
