@@ -26,7 +26,8 @@ datafile = h5py.File(filename,'r')
 
 # Create plot
 plt.title('Angular Momentum')
-plt.plot(range(108),datafile['tasks/Angular Momentum'][:,0,0,0])
+plot_set = datafile['tasks/Angular Momentum'][:,0,0,0]
+plt.plot(range(len(plot_set)),plot_set)
 plt.tight_layout()
 plot_file_name = 'radial_profile.png'
 plt.savefig(plot_file_name, dpi=300)
