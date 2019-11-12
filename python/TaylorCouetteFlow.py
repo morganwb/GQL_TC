@@ -100,6 +100,7 @@ TC.substitutions['A'] = '(1/eta - 1.)*(mu-eta**2)/(1-eta**2)'
 TC.substitutions['B'] = 'eta*(1-mu)/((1-eta)*(1-eta**2))'
 TC.substitutions['v0'] = 'A*r + B/r'
 TC.substitutions['dv0dr'] = 'A - B/(r*r)'
+TC.substitutions['DivU'] = 'dr(r*u) + dtheta(v) + r*dz(w)'
 
 if threeD:
     TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
@@ -155,9 +156,6 @@ else:
 
 r = domain.grid(r_index, scales=domain.dealias)
 z = domain.grid(0, scales=domain.dealias)
- 
-p_analytic = (eta/(1-eta**2))**2 * (-1./(2*r**2*(1-eta)**2) -2*np.log(r) +0.5*r**2 * (1.-eta)**2)
-v_analytic = eta/(1-eta**2) * ((1. - mu)/(r*(1-eta)) - r * (1.-eta) * (1 - mu/eta**2)) 
 
 # boundary conditions
 TC.add_bc("left(u) = 0")
@@ -186,14 +184,8 @@ ur = IVP.state['ur']
 vr = IVP.state['vr']
 wr = IVP.state['wr']
 
-phi = domain.new_field(name='phi')
-
-for f in [phi,p,u,v,w,ur,vr,wr]:
+for f in [p,u,v,w,ur,vr,wr]:
     f.set_scales(domain.dealias, keep_data=False)
-
-v['g'] = v_analytic
-v.differentiate('r',out=vr)
-
 
 def filter_field(field,frac=0.5):
     field.require_coeff_space()
@@ -212,18 +204,44 @@ def filter_field(field,frac=0.5):
 # incompressible perturbation, arbitrary vorticity
 # u = -dz(phi)
 # w = dr(phi) + phi/r
-phi['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
-filter_field(phi)
-phi.differentiate('z',out=u)
-u['g'] *= -1
-phi.differentiate('r',out=w)
-w['g'] += phi['g']/r
+if threeD:
+    A_r = domain.new_field(name='A_r')
+    A_theta = domain.new_field(name='A_r')
+    A_z = domain.new_field(name='A_r')
+    rr = domain.new_field()
+    for f in [A_r, A_theta, A_z,rr]:
+        f.set_scales(domain.dealias, keep_data=False)
+
+    rr['g']= r
+    A_r['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    filter_field(A_r)
+    A_theta['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    filter_field(A_theta)
+    A_z['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    filter_field(A_z)
+    
+    u['g'] = A_z.differentiate('theta')['g']/r - A_theta.differentiate('z')['g']
+    v['g'] = A_theta.differentiate('z')['g'] - A_z.differentiate('r')['g']
+    scratch = (rr * A_theta).evaluate()
+    w['g'] = (scratch.differentiate('r')['g']- A_r.differentiate('theta')['g'])/r
+    
+else:
+    phi = domain.new_field(name='phi')
+    phi.set_scales(domain.dealias, keep_data=False)
+    phi['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    filter_field(phi)
+    phi.differentiate('z',out=u)
+    u['g'] *= -1
+    phi.differentiate('r',out=w)
+    w['g'] += phi['g']/r
 
 u.differentiate('r',out=ur)
 w.differentiate('r',out=wr)
 
 CFL = flow_tools.CFL(IVP, initial_dt=1e-3, cadence=5, safety=0.3,
                      max_change=1.5, min_change=0.5)
+flow = flow_tools.GlobalFlowProperty(IVP, cadence=10)
+flow.add_property("abs(DivU)", name='divu')
 
 if threeD:
     CFL.add_velocities(('u', 'v', 'w'))
@@ -257,6 +275,7 @@ while IVP.ok:
     IVP.step(dt)
     if IVP.iteration % 10 == 0:
         logger.info('Iteration: %i, Time: %e, dt: %e' %(IVP.iteration, IVP.sim_time, dt))
+        logger.info('Max |divu| = {}'.format(flow.max('divu')))
     dt = CFL.compute_dt()
 
 
