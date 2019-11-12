@@ -158,10 +158,10 @@ z = domain.grid(0, scales=domain.dealias)
 
 # boundary conditions
 TC.add_bc("left(u) = 0")
-TC.add_bc("left(v) = v_l")
+TC.add_bc("left(v) = 0")
 TC.add_bc("left(w) = 0")
 TC.add_bc("right(u) = 0", condition="nz != 0")
-TC.add_bc("right(v) = v_r")
+TC.add_bc("right(v) = 0")
 TC.add_bc("right(w) = 0")
 TC.add_bc("left(p) = 0", condition="nz == 0")
 
