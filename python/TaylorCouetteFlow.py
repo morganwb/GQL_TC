@@ -61,6 +61,10 @@ nx = config.getint('parameters','nx')
 nz = config.getint('parameters','nz')
 ntheta = config.getint('parameters','ntheta')
 
+mu = config.getfloat('parameters','mu')
+
+mesh_dim = eval(config.get('parameters','mesh_dim'))
+
 if ntheta == 0:
 	threeD = False
 else:
@@ -81,7 +85,7 @@ z_basis = de.Fourier('z', nz, interval=(0., height), dealias=3/2)
 
 if threeD:
     theta_basis = de.Fourier('theta', ntheta, interval=(0., 2*np.pi), dealias=3/2)
-    domain = de.Domain([z_basis, theta_basis, r_basis], grid_dtype=np.float64)
+    domain = de.Domain([z_basis, theta_basis, r_basis], grid_dtype=np.float64, mesh=mesh_dim)
 else:
     domain = de.Domain([z_basis, r_basis], grid_dtype=np.float64)
 
@@ -100,7 +104,7 @@ TC.substitutions['A'] = '(1/eta - 1.)*(mu-eta**2)/(1-eta**2)'
 TC.substitutions['B'] = 'eta*(1-mu)/((1-eta)*(1-eta**2))'
 TC.substitutions['v0'] = 'A*r + B/r'
 TC.substitutions['dv0dr'] = 'A - B/(r*r)'
-TC.substitutions['DivU'] = 'dr(r*u) + dtheta(v) + r*dz(w)'
+TC.substitutions['DivU'] = 'dr(r*u)/r + dtheta(v)/r + dz(w)'
 
 if threeD:
     TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"

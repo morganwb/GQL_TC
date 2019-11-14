@@ -2,7 +2,7 @@
 Plot planes from joint analysis files.
 
 Usage:
-    plot_snapshots.py <files>... [--output=<dir>]
+    plot_snapshots_3D.py <files>... [--output=<dir>]
 
 Options:
     --output=<dir>  Output directory [default: ./img_snapshots]
@@ -23,14 +23,15 @@ def main(filename, start, count, output):
     """Save plot of specified tasks for given range of analysis writes."""
 
     # Plot settings
-    with h5py.File(filename, mode='r') as file:
-        tasks = sorted(file['tasks'].keys())
+    #with h5py.File(filename, mode='r') as file:
+    #    tasks = sorted(file['tasks'].keys())
+    tasks = ['u','v','w']
     scale = 4
     dpi = 100
     title_func = lambda sim_time: 't = {:.3f}'.format(sim_time)
     savename_func = lambda write: 'write_{:06}.png'.format(write)
     # Layout
-    nrows, ncols = 3,3 
+    nrows, ncols = 1,3 
     image = plot_tools.Box(2, 1)
     pad = plot_tools.Frame(0.2, 0.2, 0.1, 0.1)
     margin = plot_tools.Frame(0.3, 0.2, 0.1, 0.1)
@@ -47,8 +48,8 @@ def main(filename, start, count, output):
                 axes = mfig.add_axes(i, j, [0, 0, 1, 1])
                 # Call 3D plotting helper, slicing in time
                 dset = file['tasks'][task]
-                image_axes = [1, 2]
-                data_slices = [index, slice(None), slice(None), 0]
+                image_axes = [2, 1]
+                data_slices = [index, slice(None), slice(None), 7.5]
                 plot_tools.plot_bot(dset, image_axes, data_slices, axes=axes, title=task, even_scale=True)
             # Add time title
             title = title_func(file['scales/sim_time'][index])
