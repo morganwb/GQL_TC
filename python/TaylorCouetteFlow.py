@@ -212,16 +212,22 @@ if threeD:
     for f in [A_r, A_theta, A_z,rr]:
         f.set_scales(domain.dealias, keep_data=False)
 
+    gshape = TC.domain.dist.grid_layout.global_shape(scales=TC.domain.dealias)
+    slices = TC.domain.dist.grid_layout.slices(scales=TC.domain.dealias)
+    rand = np.random.RandomState(seed=42)
+    noise1 = rand.standard_normal(gshape)
+    noise2 = rand.standard_normal(gshape)
+    noise3 = rand.standard_normal(gshape)
     rr['g']= r
-    A_r['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    A_r['g'] = 1e-3* noise1[slices]*np.sin(np.pi*(r - r_in))
     filter_field(A_r)
-    A_theta['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    A_theta['g'] = 1e-3* noise2[slices]*np.sin(np.pi*(r - r_in))
     filter_field(A_theta)
-    A_z['g'] = 1e-3* np.random.randn(*v['g'].shape)*np.sin(np.pi*(r - r_in))
+    A_z['g'] = 1e-3* noise3[slices]*np.sin(np.pi*(r - r_in))
     filter_field(A_z)
     
     u['g'] = A_z.differentiate('theta')['g']/r - A_theta.differentiate('z')['g']
-    v['g'] = A_theta.differentiate('z')['g'] - A_z.differentiate('r')['g']
+    v['g'] = A_r.differentiate('z')['g'] - A_z.differentiate('r')['g']
     scratch = (rr * A_theta).evaluate()
     w['g'] = (scratch.differentiate('r')['g']- A_r.differentiate('theta')['g'])/r
     
