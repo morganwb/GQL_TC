@@ -24,15 +24,23 @@ filename = vars(args)['filename']
 spn = 1
 scalar_vars = ['total kinetic energy','meridional kinetic energy','u_rms','w_rms']
 
+
+graph_titles = ['kinetic energy','','rms_values']
+
+
 # Import .h5 file passed to script 
 datafile = h5py.File(filename,'r')
 
 # Create subplots
-for i in range(4):
-	plt.subplot(2,2,spn)
-	plt.title(scalar_vars[i])
+for i in [0,2]:
+	plt.subplot(1,2,spn)
+	plt.title(graph_titles[i])
 	sp_set = datafile['tasks/' + scalar_vars[i]][:,0,0,0]
-	plt.plot(range(len(sp_set)),sp_set)
+	plt.plot(range(len(sp_set)),sp_set, label=scalar_vars[i])
+
+	sp_set = datafile['tasks/' + scalar_vars[i+1]][:,0,0,0]
+	plt.plot(range(len(sp_set)),sp_set, label=scalar_vars[i+1])
+	plt.legend()
 	spn += 1
 plt.tight_layout()
 plot_file_name = 'scalar_timeseries.png'

@@ -104,7 +104,7 @@ TC.substitutions['A'] = '(1/eta - 1.)*(mu-eta**2)/(1-eta**2)'
 TC.substitutions['B'] = 'eta*(1-mu)/((1-eta)*(1-eta**2))'
 TC.substitutions['v0'] = 'A*r + B/r'
 TC.substitutions['dv0dr'] = 'A - B/(r*r)'
-TC.substitutions['DivU'] = 'dr(r*u)/r + dtheta(v)/r + dz(w)'
+TC.substitutions['DivU'] = 'ur + u/r + dtheta(v)/r + dz(w)'
 
 if threeD:
     TC.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
@@ -264,6 +264,7 @@ analysis1 = IVP.evaluator.add_file_handler("scalar_data", iter=10)
 analysis1.add_task("integ(0.5 * (u*u + v*v + w*w))", name="total kinetic energy")
 analysis1.add_task("integ(0.5 * (u*u + w*w))", name="meridional kinetic energy")
 analysis1.add_task("integ((u*u)**0.5)", name='u_rms')
+analysis1.add_task("integ((v*v)**0.5)", name='v_rms')
 analysis1.add_task("integ((w*w)**0.5)", name='w_rms')
 analysis_tasks.append(analysis1)
 
