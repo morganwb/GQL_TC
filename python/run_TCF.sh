@@ -1,9 +1,8 @@
 #!/usr/bin/bash
-#SBATCH --partition=defq
-#SBATCH --time=10:00:00
+#SBATCH -p defq
+#SBATCH -t 24:00:00
+#SBATCH -N 3
 
 date
-mpiexec -n 8 python3 TaylorCouetteFlow.py cfg_1.cfg
-date
-mpiexec -n 1 python3 -m dedalus merge_procs snapshots
+mpirun -np 64 python3 taylor_couette_3d.py --re=243.81 --eta=0.875 --m=6 --ar=3 --mesh_1=8 --mesh_2=8
 date
