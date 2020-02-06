@@ -49,7 +49,8 @@ def main(filename, start, count, output):
                 # Call 3D plotting helper, slicing in time
                 dset = file['tasks'][task]
                 image_axes = [2, 1]
-                data_slices = [index, slice(None), slice(None), 7.5]
+                data_slices = [index, slice(None), slice(None), 15]
+                #data_slices = [index, slice(None), slice(None), 7.5]
                 plot_tools.plot_bot(dset, image_axes, data_slices, axes=axes, title=task, even_scale=True)
             # Add time title
             title = title_func(file['scales/sim_time'][index])

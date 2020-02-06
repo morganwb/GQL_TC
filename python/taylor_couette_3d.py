@@ -120,7 +120,7 @@ problem.parameters['nu']=nu
 problem.parameters['R1']=R1
 problem.parameters['R2']=R2
 problem.parameters['pi']=np.pi
-problem.parameters['r_mid']=
+problem.parameters['r_mid']=R1 + (R2-R1) / 2
 
 
 #Substitutions
