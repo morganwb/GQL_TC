@@ -254,9 +254,9 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 25*period
+solver.stop_sim_time = 15*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = 1000
+solver.stop_iteration = np.inf#1000
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
@@ -285,7 +285,7 @@ snapshots=solver.evaluator.add_file_handler(sim_name + 'snapshots',sim_dt=output
 snapshots.add_system(solver.state)
 
 #Analysis files
-Jeffs_analysis=True
+Jeffs_analysis=False
 if Jeffs_analysis:
     analysis_slice = solver.evaluator.add_file_handler(sim_name+"/slices", max_writes=20, parallel=False)
     analysis_slice.add_task("interp(u,r=r_mid)", name="u",scales=4)
