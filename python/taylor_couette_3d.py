@@ -1,7 +1,7 @@
 """
 
 Usage:
-  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] --mesh_1=<mesh_1> --mesh_2=<mesh_2>
+  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] --mesh_1=<mesh_1> --mesh_2=<mesh_2>
   taylor_couette_3d.py -h |--help
 
 Options:
@@ -12,6 +12,7 @@ Options:
   --ar=<Gamma>     Aspect ratio (height/width)
   --mesh1=<mesh_1> First mesh core count
   --mesh2=<mesh_2> Second mesh core count
+  --restart=<restart> If restarting a previous run, point to a file
 
 """
 
@@ -21,7 +22,6 @@ from dedalus.extras import flow_tools
 from dedalus import public as de
 import time
 import logging
-#import gc
 from docopt import docopt
 import os
 from mpi4py import MPI
@@ -42,7 +42,13 @@ for h in root.handlers:
 
 logger = logging.getLogger(__name__)
 
-
+# Checks whether an existing snapshot file was passed to the script
+try:
+	restart_file = str(args['--restart'])
+	restart = True
+except TypeError:
+	restart = False
+	pass
 
 """
 delta = R2 - R1
@@ -62,17 +68,23 @@ mu = 0
 #Lz = 2.0074074463832545
 Sc = 1
 dealias = 3/2
-nz=32
-ntheta=32
-nr=32
+nz=64
+ntheta=64
+nr=64
 
 eta_string = "{:.4e}".format(eta).replace(".","-")
 root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}/".format(Re1,eta_string,Gamma)
-
+path = 'results/'+root_folder
 if rank==0:
-    if not os.path.exists('results/'+root_folder):
-        os.mkdir('results/'+root_folder)
+    if not os.path.exists(path):
+        os.mkdir(path)
 sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}/".format(Re1,eta_string,Gamma)
+
+"""
+# FIND SOME WAY FOR BASH TO MERGE PROCS
+txt_file = root_folder + '.txt'
+folder_name = open(txt_file,'w')
+"""
 
 #derived parameters
 R1 = eta/(1. - eta)
@@ -80,7 +92,7 @@ R2 = 1./(1-eta)
 Omega1 = 1/R1
 Omega2 = mu*Omega1
 nu = R1 * Omega1/Re1
-
+midpoint = R1 + (R2-R1) / 2
 Lz = Gamma * (R2 - R1)
 
 #Taylor Number
@@ -111,7 +123,6 @@ domain = de.Domain(bases, grid_dtype=np.float64, mesh=[mesh_1,mesh_2])
 #problem
 problem = de.IVP(domain, variables=variables)
 
-
 #params into equations
 problem.parameters['eta']=eta
 problem.parameters['mu']=mu
@@ -120,7 +131,6 @@ problem.parameters['nu']=nu
 problem.parameters['R1']=R1
 problem.parameters['R2']=R2
 problem.parameters['pi']=np.pi
-problem.parameters['r_mid']=R1 + (R2-R1) / 2
 
 
 #Substitutions
@@ -220,7 +230,6 @@ z = problem.domain.grid(0,scales=problem.domain.dealias)
 theta = problem.domain.grid(1,scales=problem.domain.dealias)
 r_in = R1
 
-
 willis=True
 if willis==True:
     ## Willis & Bahrenghi ICs
@@ -235,7 +244,9 @@ if willis==True:
     w['g'] = kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta)
     u.differentiate('r',out=ur)
     w.differentiate('r',out=wr)
-
+elif restart==True:
+	logger.info("Restarting from file {}".format(restart_file))
+	write, last_dt = solver.load_state(restart_file, -1)
 else:
     # Random perturbations to v in (r, z)
     A0 = 1e-3
@@ -256,7 +267,7 @@ omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
 solver.stop_sim_time = 15*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = np.inf#1000
+solver.stop_iteration = np.inf
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
@@ -285,15 +296,15 @@ snapshots=solver.evaluator.add_file_handler(sim_name + 'snapshots',sim_dt=output
 snapshots.add_system(solver.state)
 
 #Analysis files
-Jeffs_analysis=False
+Jeffs_analysis=True
 if Jeffs_analysis:
     analysis_slice = solver.evaluator.add_file_handler(sim_name+"/slices", max_writes=20, parallel=False)
-    analysis_slice.add_task("interp(u,r=r_mid)", name="u",scales=4)
-    analysis_slice.add_task("interp(v,r=r_mid)", name="v",scales=4)
-    analysis_slice.add_task("interp(w,r=r_mid)", name="w",scales=4)
-    #analysis_slice.add_task("u", name="uc", layout="c")
-    #analysis_slice.add_task("v", name="vc", layout="c")
-    #analysis_slice.add_task("w", name="wc", layout="c")
+    analysis_slice.add_task("interp(u,r={})".format(midpoint), name="u_slice",scales=4)
+    analysis_slice.add_task("interp(v,r={})".format(midpoint), name="v_slice",scales=4)
+    analysis_slice.add_task("interp(w,r={})".format(midpoint), name="w_slice",scales=4)
+    analysis_slice.add_task("u", name="uc", layout="c")
+    analysis_slice.add_task("v", name="vc", layout="c")
+    analysis_slice.add_task("w", name="wc", layout="c")
     
     analysis_profile = solver.evaluator.add_file_handler(sim_name+"/profiles", max_writes=20, parallel=False)
     analysis_profile.add_task("plane_avg(KE)", name="KE")
