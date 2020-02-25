@@ -80,11 +80,6 @@ if rank==0:
         os.mkdir(path)
 sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}/".format(Re1,eta_string,Gamma)
 
-"""
-# FIND SOME WAY FOR BASH TO MERGE PROCS
-txt_file = root_folder + '.txt'
-folder_name = open(txt_file,'w')
-"""
 
 #derived parameters
 R1 = eta/(1. - eta)
@@ -230,7 +225,7 @@ z = problem.domain.grid(0,scales=problem.domain.dealias)
 theta = problem.domain.grid(1,scales=problem.domain.dealias)
 r_in = R1
 
-willis=True
+#willis=True
 if willis==True:
     ## Willis & Bahrenghi ICs
     logger.info("Using initial conditions from Willis's PhD thesis")
