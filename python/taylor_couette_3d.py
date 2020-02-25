@@ -12,7 +12,7 @@ Options:
   --ar=<Gamma>     Aspect ratio (height/width)
   --mesh1=<mesh_1> First mesh core count
   --mesh2=<mesh_2> Second mesh core count
-  --restart=<restart> If restarting a previous run, point to a file
+  --restart=<restart> If restarting a previous run, point to the merged .h5 file
 
 """
 
@@ -49,7 +49,7 @@ try:
 except TypeError:
 	restart = False
 	pass
-
+logger.info(restart_file)
 """
 delta = R2 - R1
 mu = Omega2/Omega1
@@ -225,8 +225,12 @@ z = problem.domain.grid(0,scales=problem.domain.dealias)
 theta = problem.domain.grid(1,scales=problem.domain.dealias)
 r_in = R1
 
-#willis=True
-if willis==True:
+willis=True
+
+if restart==True:
+	logger.info("Restarting from file {}".format(restart_file))
+	write, last_dt = solver.load_state(restart_file, -1)
+elif willis==True:
     ## Willis & Bahrenghi ICs
     logger.info("Using initial conditions from Willis's PhD thesis")
     #m1=3
@@ -239,9 +243,6 @@ if willis==True:
     w['g'] = kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta)
     u.differentiate('r',out=ur)
     w.differentiate('r',out=wr)
-elif restart==True:
-	logger.info("Restarting from file {}".format(restart_file))
-	write, last_dt = solver.load_state(restart_file, -1)
 else:
     # Random perturbations to v in (r, z)
     A0 = 1e-3
@@ -260,7 +261,7 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 15*period
+solver.stop_sim_time = 25*period
 solver.stop_wall_time = 24*3600.#np.inf
 solver.stop_iteration = np.inf
 
