@@ -1,12 +1,14 @@
 """
-Plot planes from joint analysis files.
+Plot planes from joint analysis files. For GQL_TC (Morgan's thesis), 
 
 Usage:
-    plot_snapshots_3D.py <files>... [--output=<dir>]
+    plot_snapshots_3D.py <files>... [--output=<dir>] [--x_axis=<x_axis>] [--y_axis=<y_axis>] [--slice=<slice>]
 
 Options:
     --output=<dir>  Output directory [default: ./img_snapshots]
-
+    --x_axis=<x_axis>  The basis to be plotted on the x axis [default: theta]
+    --y_axis=<y_axis> The basis to be plotted on the y axis [default: z]
+    --slice=<slice> Where to slice the third basis [default: 7.5 (slicing through r)]
 """
 
 import h5py
@@ -48,10 +50,9 @@ def main(filename, start, count, output):
                 axes = mfig.add_axes(i, j, [0, 0, 1, 1])
                 # Call 3D plotting helper, slicing in time
                 dset = file['tasks'][task]
-                image_axes = [2, 1]
-                data_slices = [index, slice(None), slice(None), 15]
-                #data_slices = [index, slice(None), slice(None), 7.5]
-                plot_tools.plot_bot(dset, image_axes, data_slices, axes=axes, title=task, even_scale=True)
+                #plot_axes = [3,1]
+                new_slices = [index] + run_slices
+                plot_tools.plot_bot(dset, plot_axes, new_slices, axes=axes, title=task, even_scale=True)
             # Add time title
             title = title_func(file['scales/sim_time'][index])
             title_height = 1 - 0.5 * mfig.margin.top / mfig.fig.y
@@ -80,5 +81,29 @@ if __name__ == "__main__":
         if sync.comm.rank == 0:
             if not output_path.exists():
                 output_path.mkdir()
+    try:
+        slicer = float(args['--slice'])
+    except:
+        slicer = 7.5
+        pass
+    x_axis = str(args['--x_axis'])
+    y_axis = str(args['--y_axis'])
+    plot_axes = []
+    for s in [x_axis,y_axis]:
+        if s=='z':
+            plot_axes.append(1)
+        elif s=='theta':
+            plot_axes.append(2)
+        elif s=='r':
+            plot_axes.append(3)
+        else:
+            print('Bad axis basis specified. Options are z, theta, r. Exiting...')
+    run_slices = []
+    for i in range(3):
+        if i+1 in plot_axes:
+            run_slices.append(slice(None))
+        else:
+            run_slices.append(slicer)
+
     post.visit_writes(args['<files>'], main, output=output_path)
 

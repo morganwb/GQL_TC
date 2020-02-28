@@ -49,6 +49,7 @@ try:
 except TypeError:
 	restart = False
 	pass
+restart=False
 logger.info(restart_file)
 """
 delta = R2 - R1
@@ -70,7 +71,7 @@ Sc = 1
 dealias = 3/2
 nz=64
 ntheta=64
-nr=64
+nr=32
 
 eta_string = "{:.4e}".format(eta).replace(".","-")
 root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}/".format(Re1,eta_string,Gamma)
@@ -261,9 +262,9 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 25*period
+solver.stop_sim_time = 15*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = np.inf
+solver.stop_iteration = 2000
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
