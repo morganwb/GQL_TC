@@ -12,7 +12,7 @@ Options:
   --ar=<Gamma>     Aspect ratio (height/width)
   --mesh1=<mesh_1> First mesh core count
   --mesh2=<mesh_2> Second mesh core count
-  --restart=<restart> If restarting a previous run, point to the merged .h5 file
+  --restart=<restart> To restart a run, point to the merged snapshots.h5 file
 
 """
 
@@ -24,6 +24,7 @@ import time
 import logging
 from docopt import docopt
 import os
+import subprocess
 from mpi4py import MPI
 
 comm=MPI.COMM_WORLD
@@ -44,13 +45,12 @@ logger = logging.getLogger(__name__)
 
 # Checks whether an existing snapshot file was passed to the script
 try:
-	restart_file = str(args['--restart'])
-	restart = True
+    restart_file = str(args['--restart'])
+    restart = True
 except TypeError:
-	restart = False
-	pass
-restart=False
-logger.info(restart_file)
+    restart = False
+    pass
+restart = False
 """
 delta = R2 - R1
 mu = Omega2/Omega1
@@ -71,15 +71,19 @@ Sc = 1
 dealias = 3/2
 nz=64
 ntheta=64
-nr=32
+nr=64
 
 eta_string = "{:.4e}".format(eta).replace(".","-")
-root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}/".format(Re1,eta_string,Gamma)
+root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
 path = 'results/'+root_folder
 if rank==0:
     if not os.path.exists(path):
         os.mkdir(path)
-sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}/".format(Re1,eta_string,Gamma)
+    else:
+        logger.info('Folder for run already exists.')
+        logger.info('Use restart, rename existing folder, or change parameters')
+        subprocess.call(['analysis_scripts/./kill_script.sh'])
+sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
 
 
 #derived parameters
@@ -262,9 +266,9 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 15*period
+solver.stop_sim_time = 10*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = 2000
+solver.stop_iteration = np.inf
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
