@@ -186,21 +186,15 @@ problem.substitutions['Lap_z'] = "Lap_s(w, wr)"
 problem.substitutions['Lap_z_l'] = "Lap_s(w_l, dr(w_l))"
 problem.substitutions['Lap_z_h'] = "Lap_s(w_h, dr(w_h))"
 
+
+# old nonlinear expressions
 problem.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f)"
-problem.substitutions['UdotGrad_s_l(f, f_r)'] = "r*r*u_l*f_r + r*v_l*dtheta(f) + r*r*w_l*dz(f)"
-problem.substitutions['UdotGrad_s_h(f, f_r)'] = "r*r*u_h*f_r + r*v_h*dtheta(f) + r*r*w_h*dz(f)"
 
 problem.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
-problem.substitutions['UdotGrad_r_l'] = "UdotGrad_s_l(u_l, dr(u_l)) - r*v_l*v_l"
-problem.substitutions['UdotGrad_r_h'] = "UdotGrad_s_h(u_h, dr(u_h)) - r*v_h*v_h"
 
 problem.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
-problem.substitutions['UdotGrad_t_l'] = "UdotGrad_s_l(v_l, dr(v_l)) + r*u_l*v_l"
-problem.substitutions['UdotGrad_t_h'] = "UdotGrad_s_h(v_h, dr(v_h)) + r*u_h*v_h"
 
 problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
-problem.substitutions['UdotGrad_z_l'] = "UdotGrad_s_l(w_l, dr(w_l))"
-problem.substitutions['UdotGrad_z_h'] = "UdotGrad_s_h(w_h, dr(w_h))"
 
 problem.substitutions['Project_high(A)'] = ""
 problem.substitutions['Project_low(A)'] = ""
