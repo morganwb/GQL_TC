@@ -1,4 +1,5 @@
-# Run inside TC_... folder to merge procs and plot snapshots
+# Run inside TC_... folder to merge procs and plot snapshots. Use slurm-analysis.sh for
+# analysis in sbatch script
 
 function png2mp4(){
     cat $1 | ffmpeg \
@@ -19,7 +20,7 @@ function png2mp4(){
 echo "Beginning analysis tasks..."
 sleep 1
 echo "Merging processor files..."
-python3 -m dedalus merge_procs profiles/
+python3 -m dedalus merge_procs spectra/
 python3 -m dedalus merge_procs scalar/
 python3 -m dedalus merge_procs slices/
 python3 -m dedalus merge_procs snapshots/
