@@ -180,8 +180,8 @@ problem.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w
 problem.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
 problem.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
 problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
-
-
+problem.substitutions['Project_high(A)'] = ""
+problem.substitutions['Project_low(A)'] = ""
 
 
 #equations
@@ -194,10 +194,10 @@ problem.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
 # problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
 
 # high GQL modes
-problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = (u_h*dr(u_l)+ (v_h/r)*dtheta(u_l) + w_h*dz(u_l) - (v_h*v_l)/r) + (u_l*dr(u_h) +(v_l/r)*dtheta(u_h) + w_l*dz(u_h) - (v_h*v_l)/r))")
+problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = Project_high(u_h*dr(u_l)+ (v_h/r)*dtheta(u_l) + w_h*dz(u_l) - (v_h*v_l)/r) + (u_l*dr(u_h) +(v_l/r)*dtheta(u_h) + w_l*dz(u_h) - (v_h*v_l)/r))")
 
 # low GQL modes
-problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = (u_h*dr(u_h)+ (v_h/r)*dtheta(u_h) + w_h*dz(u_h) - (v_h*v_h)/r) + (u_l*dr(u_l) + (v_l/r)*dtheta(u_l) + w_l*dz(u_l) - (v_l*v_l)/r))")
+problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = Project_low(u_h*dr(u_h)+ (v_h/r)*dtheta(u_h) + w_h*dz(u_h) - (v_h*v_h)/r) + (u_l*dr(u_l) + (v_l/r)*dtheta(u_l) + w_l*dz(u_l) - (v_l*v_l)/r))")
 
 
 #momentum (theta)
@@ -205,20 +205,20 @@ problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*d
 # problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
 
 # high GQL modes
-problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  =(u_h*dr(v_l) + (v_h/r)*dtheta(v_l) + w_h*dz(v_l) + (v_h*u_l)/r + u_l*dr(v_h) + (v_l/r)*dtheta(v_h) + w_l*dz(v_h) + (v_l*u_h)/r)")
+problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  =Project_high(u_h*dr(v_l) + (v_h/r)*dtheta(v_l) + w_h*dz(v_l) + (v_h*u_l)/r + u_l*dr(v_h) + (v_l/r)*dtheta(v_h) + w_l*dz(v_h) + (v_l*u_h)/r)")
 
 # low GQL modes
-problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  =(u_h*dr(v_h) + (v_h/r)*dtheta(v_h) + w_h*dz(v_h) + (v_h*u_h)/r + u_l*dr(v_l) + (v_l/r)*dtheta(v_l) + w_l*dz(v_l) + (v_l*u_l)/r)")
+problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  =Project_low(u_h*dr(v_h) + (v_h/r)*dtheta(v_h) + w_h*dz(v_h) + (v_h*u_h)/r + u_l*dr(v_l) + (v_l/r)*dtheta(v_l) + w_l*dz(v_l) + (v_l*u_l)/r)")
 
 #momentum (z)
 # DNS
 # problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
 
 # high GQL modes
-problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = (u_h*dr(w_l) + (v_h/r)*dtheta(w_l) + w_h*dz(w_l) + u_l*dr(w_h) + (v_l/r)*dtheta(w_h) + w_l*dz(w_h))")
+problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = Project_high(u_h*dr(w_l) + (v_h/r)*dtheta(w_l) + w_h*dz(w_l) + u_l*dr(w_h) + (v_l/r)*dtheta(w_h) + w_l*dz(w_h))")
 
 # low GQL modes
-problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = (u_h*dr(w_h) + (v_h/r)*dtheta(w_h) + w_h*dz(w_h) + u_l*dr(w_l) + (v_l/r)*dtheta(w_l) + w_l*dz(w_l))")
+problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = Project_low(u_h*dr(w_h) + (v_h/r)*dtheta(w_h) + w_h*dz(w_h) + u_l*dr(w_l) + (v_l/r)*dtheta(w_l) + w_l*dz(w_l))")
 
 
 #Auxillilary equations
