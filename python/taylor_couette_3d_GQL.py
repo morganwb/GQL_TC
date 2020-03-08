@@ -193,22 +193,25 @@ problem.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
 # DNS
 # problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
 
-# GQL (high modes only)
-problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = u_h*dr(u_l)+ (v_h/r)*dtheta(u_l) + w_h*dz(u_l) - (v_h*v_l)/r")
+# high GQL modes
+problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = (u_h*dr(u_l)+ (v_h/r)*dtheta(u_l) + w_h*dz(u_l) - (v_h*v_l)/r) + (v_l/r)*dtheta(u_h) + w_l*dz(u_h) - (v_h*v_l)/r))"
 
 #momentum (theta)
 # DNS
 # problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
 
-# GQL (high modes only)
-problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = u_h*dr(v_l) + (v_h/r)*dtheta(v_l) + w_h*dz(v_l) + (v_h*u_l)/r")
+# high GQL modes
+problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  =(u_h*dr(v_l) + (v_h/r)*dtheta(v_l) + w_h*dz(v_l) + (v_h*u_l)/r + u_l*dr(v_h) + (v_l/r)*dtheta(v_h) + w_l*dz(v_h) + (v_l*u_h)/r)"
 
-#momentum (z)\
+#momentum (z)
 # DNS
 # problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
 
-# GQL (high modes only)
-problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = u_h*dr(w_l) + (v_h/r)*dtheta(w_l) + w_h*dz(w_l)")
+# low GQL modes
+problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = (u_h*dr(w_l) + (v_h/r)*dtheta(w_l) + w_h*dz(w_l) + u_l*dr(w_h) + (v_l/r)*dtheta(w_h) + w_l*dz(w_h))")
+
+
+
 
 #Auxillilary equations
 problem.add_equation("ur - dr(u) = 0")
