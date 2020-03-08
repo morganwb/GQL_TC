@@ -50,7 +50,7 @@ try:
 except TypeError:
     restart = False
     pass
-restart = False
+restart=False
 """
 delta = R2 - R1
 mu = Omega2/Omega1
@@ -71,7 +71,7 @@ Sc = 1
 dealias = 3/2
 nz=64
 ntheta=64
-nr=64
+nr=32
 
 eta_string = "{:.4e}".format(eta).replace(".","-")
 root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
@@ -79,10 +79,10 @@ path = 'results/'+root_folder
 if rank==0:
     if not os.path.exists(path):
         os.mkdir(path)
-    else:
+    elif restart==False:
         logger.info('Folder for run already exists.')
         logger.info('Use restart, rename existing folder, or change parameters')
-        subprocess.call(['analysis_scripts/./kill_script.sh'])
+        #subprocess.call(['analysis_scripts/./kill_script.sh'])
 sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
 
 
@@ -155,7 +155,8 @@ problem.substitutions['dv0dr'] = 'A - B/(r*r)'  #d/dr of background forcing
 
 problem.substitutions['v_tot'] = 'v0 + v'       #total velocity in v direction. (azimuthal)
 problem.substitutions['vel_sum_sq'] = 'u**2 + v_tot**2 + w**2'
-problem.substitutions['plane_avg(A)'] = 'integ(r*A, "z")/Lz'
+problem.substitutions['plane_avg_r(A)'] = 'integ(integ(A, "z"),"theta")/(r*Lz)'
+problem.substitutions['plane_avg_z(A)'] = 'integ(integ(A, "r"),"theta")/Lz'
 problem.substitutions['vol_avg(A)']   = 'integ(r*A)/(pi*(R2**2 - R1**2)*Lz)'
 problem.substitutions['probe(A)'] = 'interp(A,r={}, theta={}, z={})'.format(R1 + 0.5, 0., Lz/2.)
 
@@ -268,7 +269,7 @@ omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
 solver.stop_sim_time = 10*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = np.inf
+solver.stop_iteration = 2000
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
@@ -303,18 +304,23 @@ if Jeffs_analysis:
     analysis_slice.add_task("interp(u,r={})".format(midpoint), name="u_slice",scales=4)
     analysis_slice.add_task("interp(v,r={})".format(midpoint), name="v_slice",scales=4)
     analysis_slice.add_task("interp(w,r={})".format(midpoint), name="w_slice",scales=4)
-    analysis_slice.add_task("u", name="uc", layout="c")
-    analysis_slice.add_task("v", name="vc", layout="c")
-    analysis_slice.add_task("w", name="wc", layout="c")
+
+    analysis_slice.add_task("interp(KE, z=0)", name="KE")
+    analysis_slice.add_task("plane_avg_z(v_tot)", name="v_tot")
+    analysis_slice.add_task("plane_avg_z(u_rms)", name="u_rms")
+    analysis_slice.add_task("plane_avg_z(v_rms)", name="v_rms")
+    analysis_slice.add_task("plane_avg_z(w_rms)", name="w_rms")
+    analysis_slice.add_task("plane_avg_z(Re_rms)", name="Re_rms")
+    analysis_slice.add_task("plane_avg_z(epicyclic_freq_sq)", name="epicyclic_freq_sq")
+    analysis_slice.add_task("integ(r*v, 'z')", name='Angular Momentum')
     
     analysis_profile = solver.evaluator.add_file_handler(sim_name+"/profiles", max_writes=20, parallel=False)
-    analysis_profile.add_task("plane_avg(KE)", name="KE")
-    analysis_profile.add_task("plane_avg(v_tot)", name="v_tot")
-    analysis_profile.add_task("plane_avg(u_rms)", name="u_rms")
-    analysis_profile.add_task("plane_avg(v_rms)", name="v_rms")
-    analysis_profile.add_task("plane_avg(w_rms)", name="w_rms")
-    analysis_profile.add_task("plane_avg(Re_rms)", name="Re_rms")
-    analysis_profile.add_task("plane_avg(epicyclic_freq_sq)", name="epicyclic_freq_sq")
+
+
+    analysis_spectra = solver.evaluator.add_file_handler(sim_name+"/spectra", max_writes=20, parallel=False)
+    analysis_spectra.add_task("u", name="uc", layout="c")
+    analysis_spectra.add_task("v", name="vc", layout="c")
+    analysis_spectra.add_task("w", name="wc", layout="c")
     
     analysis_scalar = solver.evaluator.add_file_handler(sim_name+"/scalar", parallel=False)
     analysis_scalar.add_task("integ(r*KE)", name="KE")

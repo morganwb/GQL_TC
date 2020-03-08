@@ -190,13 +190,25 @@ problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
 problem.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
 
 #momentum (r)
-problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+# DNS
+# problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+
+# GQL (high modes only)
+problem.add_equation("r*r*dt(u_h) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = u_h*dr(u_l)+ (v_h/r)*dtheta(u_l) + w_h*dz(u_l) - (v_h*v_l)/r")
 
 #momentum (theta)
-problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
+# DNS
+# problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
 
-#momentum (z)
-problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
+# GQL (high modes only)
+problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = u_h*dr(v_l) + (v_h/r)*dtheta(v_l) + w_h*dz(v_l) + (v_h*u_l)/r")
+
+#momentum (z)\
+# DNS
+# problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
+
+# GQL (high modes only)
+problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = u_h*dr(w_l) + (v_h/r)*dtheta(w_l) + w_h*dz(w_l)")
 
 #Auxillilary equations
 problem.add_equation("ur - dr(u) = 0")
