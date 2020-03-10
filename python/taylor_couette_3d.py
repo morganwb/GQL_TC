@@ -1,7 +1,7 @@
 """
 
 Usage:
-  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] --mesh_1=<mesh_1> --mesh_2=<mesh_2>
+  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2>
   taylor_couette_3d.py -h |--help
 
 Options:
@@ -37,20 +37,15 @@ Gamma = int(args['--ar'])
 mesh_1 = int(args['--mesh_1'])
 mesh_2 = int(args['--mesh_2'])
 m1 = int(args['--m'])
+restart = bool(args['--restart'])
 root = logging.root
 for h in root.handlers:
     h.setLevel("INFO")
 
 logger = logging.getLogger(__name__)
 
-# Checks whether an existing snapshot file was passed to the script
-try:
-    restart_file = str(args['--restart'])
-    restart = True
-except TypeError:
-    restart = False
-    pass
-restart=False
+if restart==True:
+    restart_file = str(args['--restart_file'])
 """
 delta = R2 - R1
 mu = Omega2/Omega1
@@ -69,9 +64,9 @@ mu = 0
 #Lz = 2.0074074463832545
 Sc = 1
 dealias = 3/2
-nz=64
-ntheta=64
-nr=32
+nz=128
+ntheta=128
+nr=64
 
 eta_string = "{:.4e}".format(eta).replace(".","-")
 root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
@@ -82,7 +77,7 @@ if rank==0:
     elif restart==False:
         logger.info('Folder for run already exists.')
         logger.info('Use restart, rename existing folder, or change parameters')
-        #subprocess.call(['analysis_scripts/./kill_script.sh'])
+        subprocess.call(['analysis_scripts/./kill_script.sh'])
 sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
 
 
@@ -155,8 +150,7 @@ problem.substitutions['dv0dr'] = 'A - B/(r*r)'  #d/dr of background forcing
 
 problem.substitutions['v_tot'] = 'v0 + v'       #total velocity in v direction. (azimuthal)
 problem.substitutions['vel_sum_sq'] = 'u**2 + v_tot**2 + w**2'
-problem.substitutions['plane_avg_r(A)'] = 'integ(integ(A, "z"),"theta")/(r*Lz)'
-problem.substitutions['plane_avg_z(A)'] = 'integ(integ(A, "r"),"theta")/Lz'
+problem.substitutions['plane_avg_r(A)'] = 'integ(integ(A, "z"),"theta")/(2*pi*Lz)'
 problem.substitutions['vol_avg(A)']   = 'integ(r*A)/(pi*(R2**2 - R1**2)*Lz)'
 problem.substitutions['probe(A)'] = 'interp(A,r={}, theta={}, z={})'.format(R1 + 0.5, 0., Lz/2.)
 
@@ -267,9 +261,9 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 10*period
+solver.stop_sim_time = 25*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = 2000
+solver.stop_iteration = np.inf
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
@@ -306,12 +300,12 @@ if Jeffs_analysis:
     analysis_slice.add_task("interp(w,r={})".format(midpoint), name="w_slice",scales=4)
 
     analysis_slice.add_task("interp(KE, z=0)", name="KE")
-    analysis_slice.add_task("plane_avg_z(v_tot)", name="v_tot")
-    analysis_slice.add_task("plane_avg_z(u_rms)", name="u_rms")
-    analysis_slice.add_task("plane_avg_z(v_rms)", name="v_rms")
-    analysis_slice.add_task("plane_avg_z(w_rms)", name="w_rms")
-    analysis_slice.add_task("plane_avg_z(Re_rms)", name="Re_rms")
-    analysis_slice.add_task("plane_avg_z(epicyclic_freq_sq)", name="epicyclic_freq_sq")
+    analysis_slice.add_task("plane_avg_r(v_tot)", name="v_tot")
+    analysis_slice.add_task("plane_avg_r(u_rms)", name="u_rms")
+    analysis_slice.add_task("plane_avg_r(v_rms)", name="v_rms")
+    analysis_slice.add_task("plane_avg_r(w_rms)", name="w_rms")
+    analysis_slice.add_task("plane_avg_r(Re_rms)", name="Re_rms")
+    analysis_slice.add_task("plane_avg_r(epicyclic_freq_sq)", name="epicyclic_freq_sq")
     analysis_slice.add_task("integ(r*v, 'z')", name='Angular Momentum')
     
     analysis_profile = solver.evaluator.add_file_handler(sim_name+"/profiles", max_writes=20, parallel=False)
