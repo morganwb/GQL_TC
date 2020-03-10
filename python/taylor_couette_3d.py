@@ -1,7 +1,7 @@
 """
 
 Usage:
-  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2>
+  taylor_couette_3d_GQL.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restat_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> --GQL=<GQL> [--lambda=<lambda>]
   taylor_couette_3d.py -h |--help
 
 Options:
@@ -12,8 +12,10 @@ Options:
   --ar=<Gamma>     Aspect ratio (height/width)
   --mesh1=<mesh_1> First mesh core count
   --mesh2=<mesh_2> Second mesh core count
-  --restart=<restart> To restart a run, point to the merged snapshots.h5 file
-
+  --restart=<restart> True or False
+  --restart_file=<restart_file> Point to a merged snapshots_s1.h5 file
+  --GQL=<GQL> True or False
+  --lambda=<lambda> Specify an integer cutoff to seperate low and high modes
 """
 
 import numpy as np
@@ -34,10 +36,12 @@ args=docopt(__doc__)
 Re1=float(args['--re'])
 eta=np.float(args['--eta'])
 Gamma = int(args['--ar'])
+lmda = int(args['--lambda'])
 mesh_1 = int(args['--mesh_1'])
 mesh_2 = int(args['--mesh_2'])
 m1 = int(args['--m'])
 restart = bool(args['--restart'])
+GQL = bool(args['--GQL'])
 root = logging.root
 for h in root.handlers:
     h.setLevel("INFO")
@@ -64,12 +68,18 @@ mu = 0
 #Lz = 2.0074074463832545
 Sc = 1
 dealias = 3/2
-nz=128
-ntheta=128
-nr=64
+nz=64
+ntheta=64
+nr=32
 
 eta_string = "{:.4e}".format(eta).replace(".","-")
-root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
+
+
+if GQL:
+    root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}_GQL_lambda_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr,lmda)
+else:
+    root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
+
 path = 'results/'+root_folder
 if rank==0:
     if not os.path.exists(path):
@@ -77,8 +87,8 @@ if rank==0:
     elif restart==False:
         logger.info('Folder for run already exists.')
         logger.info('Use restart, rename existing folder, or change parameters')
-        subprocess.call(['analysis_scripts/./kill_script.sh'])
-sim_name="results/TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
+        #subprocess.call(['analysis_scripts/./kill_script.sh'])
+sim_name=path
 
 
 #derived parameters
@@ -102,9 +112,10 @@ logger.info("Taylor Number:{:.2e}, Ro^(-1):{:.2e}".format(Ta,Ro_inv))
 logger.info("Lz set to {:.6e}".format(Lz))
 
 #set up problem
-
-variables = ['u','ur','v','vr','w','wr','p']
-
+if GQL:
+    variables = ['u','ur','v','vr','w','wr','p','u_h','u_l','v_l','v_h','w_l','w_h']
+else:
+    variables = ['u','ur','v','vr','w','wr','p']
 
 #domain
 z_basis = de.Fourier(  'z', nz, interval=[0., Lz], dealias=dealias)
@@ -150,7 +161,8 @@ problem.substitutions['dv0dr'] = 'A - B/(r*r)'  #d/dr of background forcing
 
 problem.substitutions['v_tot'] = 'v0 + v'       #total velocity in v direction. (azimuthal)
 problem.substitutions['vel_sum_sq'] = 'u**2 + v_tot**2 + w**2'
-problem.substitutions['plane_avg_r(A)'] = 'integ(integ(A, "z"),"theta")/(2*pi*Lz)'
+problem.substitutions['plane_avg_r(A)'] = 'integ(integ(A, "z"),"theta")/(r*Lz)'
+problem.substitutions['plane_avg_z(A)'] = 'integ(integ(A, "r"),"theta")/Lz'
 problem.substitutions['vol_avg(A)']   = 'integ(r*A)/(pi*(R2**2 - R1**2)*Lz)'
 problem.substitutions['probe(A)'] = 'interp(A,r={}, theta={}, z={})'.format(R1 + 0.5, 0., Lz/2.)
 
@@ -165,18 +177,64 @@ problem.substitutions['enstrophy'] = '0.5*((dtheta(w)/r - dz(v_tot))**2 + (dz(u)
 
  # not pre-multiplied...don't use this in an equation!
 problem.substitutions['DivU'] = "ur + u/r + dtheta(v)/r + dz(w)" 
+
+
 # assume pre-multiplication by r*r
 problem.substitutions['Lap_s(f, f_r)'] = "r*r*dr(f_r) + r*f_r + dtheta(dtheta(f)) + r*r*dz(dz(f))"
 problem.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
 problem.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
 problem.substitutions['Lap_z'] = "Lap_s(w, wr)"
-problem.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f)"
-problem.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
-problem.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
-problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
+
+
+# substitutions
+if GQL:
+
+    # substitutions for projecting onto the low and high modes
+    problem.substitutions['Project_high(A)'] = ""
+    problem.substitutions['Project_low(A)'] = ""
+    
+    # z laplacian
+    problem.substitutions['Lap_z_l'] = "Lap_s(w_l, dr(w_l))"
+    problem.substitutions['Lap_z_h'] = "Lap_s(w_h, dr(w_h))"
+    
+    # theta laplacian
+    problem.substitutions['Lap_t_l'] = "Lap_s(v_l, dr(v_l)) - v_l + 2*dtheta(u_l)"
+    problem.substitutions['Lap_t_h'] = "Lap_s(v_h, dr(v_h)) - v_h + 2*dtheta(u_h)"
+    
+    # r laplacian
+    problem.substitutions['Lap_r_l'] = "Lap_s(u_l, dr(u_l)) - u_l - 2*dtheta(v_l)"
+    problem.substitutions['Lap_r_h'] = "Lap_s(u_h, dr(u_h)) - u_h - 2*dtheta(v_h)"
+
+    # r momentum
+    # high GQL modes
+    problem.add_equation("r*r*dt(u_h) - nu*Lap_r_h - 2*r*v0*v_h + r*v0*dtheta(u_h) + r*r*dr(p) = r*v0*v0 - Project_high(r*r*u_h*dr(u_l)+ r*v_h*dtheta(u_l) + r*r*w_h*dz(u_l) - r*v_h*v_l + r*r*u_l*dr(u_h) +r*v_l*dtheta(u_h) + r*r*w_l*dz(u_h) - r*v_h*v_l)")
+    # low GQL modes
+    problem.add_equation("r*r*dt(u_l) - nu*Lap_r_l - 2*r*v0*v_l + r*v0*dtheta(u_l) + r*r*dr(p) = r*v0*v0 - Project_low(r*r*u_h*dr(u_h)+ r*v_h*dtheta(u_h) + r*r*w_h*dz(u_h) - r*v_h*v_h + r*r*u_l*dr(u_l) + r*v_l*dtheta(u_l) + r*r*w_l*dz(u_l) - r*v_l*v_l)")
+
+    # theta momentum
+    # high GQL modes
+    problem.add_equation("r*r*dt(v_h) - nu*Lap_t_h + r*r*dv0dr*u_h + r*v0*u + r*v0*dtheta(v_h) + r*dtheta(p) = - Project_high(r*r*u_h*dr(v_l) + r*v_h*dtheta(v_l) + r*r*w_h*dz(v_l) + r*v_h*u_l + r*r*u_l*dr(v_h) + r*v_l*dtheta(v_h) + r*r*w_l*dz(v_h) + r*v_l*u_h)")
+
+    # low GQL modes
+    problem.add_equation("r*r*dt(v_l) - nu*Lap_t_l + r*r*dv0dr*u_l + r*v0*u_l + r*v0*dtheta(v_l) + r*dtheta(p) = - Project_low(r*r*u_h*dr(v_h) + r*v_h*dtheta(v_h) + r*r*w_h*dz(v_h) + r*v_h*u_h + r*r*u_l*dr(v_l) + r*v_l*dtheta(v_l) + r*r*w_l*dz(v_l) + r*v_l*u_l)")
+
+    # z momentum
+    # high GQL modes
+    problem.add_equation("r*r*dt(w_h) - nu*Lap_z_h + r*r*dz(p) + r*v0*dtheta(w_h) = - Project_high(r*r*u_h*dr(w_l) + r*v_h*dtheta(w_l) + r*r*w_h*dz(w_l) + r*r*u_l*dr(w_h) + r*v_l*dtheta(w_h) + r*r*w_l*dz(w_h))")
+
+    # low GQL modes
+    problem.add_equation("r*r*dt(w_l) - nu*Lap_z_l + r*r*dz(p) + r*v0*dtheta(w_l) = - Project_low(r*r*u_h*dr(w_h) + r*v_h*dtheta(w_h) + r*r*w_h*dz(w_h) + r*r*u_l*dr(w_l) + r*v_l*dtheta(w_l) + r*r*w_l*dz(w_l))")
 
 
 
+
+else:
+    
+    # DNS nonlinear terms
+    problem.substitutions['UdotGrad_s(f, f_r)'] = "r*r*u*f_r + r*v*dtheta(f) + r*r*w*dz(f)"
+    problem.substitutions['UdotGrad_r'] = "UdotGrad_s(u, ur) - r*v*v"
+    problem.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
+    problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
 
 #equations
 
@@ -184,19 +242,30 @@ problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
 problem.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
 
 #momentum (r)
-problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+# DNS
+# problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+
+
 
 #momentum (theta)
-problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
+# DNS
+# problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
 
 #momentum (z)
-problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
+# DNS
+# problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
+
 
 #Auxillilary equations
 problem.add_equation("ur - dr(u) = 0")
 problem.add_equation("vr - dr(v) = 0")
 problem.add_equation("wr - dr(w) = 0")
 
+
+if GQL:
+    problem.add_equation("ur - dr(u_h) - dr(u_l) = 0")
+    problem.add_equation("vr - dr(v_h) - dr(v_l) = 0")
+    problem.add_equation("wr - dr(w_h) - dr(w_l) = 0")
 
 #Boundary Conditions
 problem.add_bc("left(u) = 0")
@@ -261,7 +330,7 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 25*period
+solver.stop_sim_time = 15*period
 solver.stop_wall_time = 24*3600.#np.inf
 solver.stop_iteration = np.inf
 
