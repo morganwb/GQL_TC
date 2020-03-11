@@ -1,7 +1,7 @@
 """
 
 Usage:
-  taylor_couette_3d_GQL.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restat_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> --GQL=<GQL> [--lambda=<lambda>]
+  taylor_couette_3d_GQL.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restat_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> --GQL=<GQL> [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
   taylor_couette_3d.py -h |--help
 
 Options:
@@ -15,7 +15,7 @@ Options:
   --restart=<restart> True or False
   --restart_file=<restart_file> Point to a merged snapshots_s1.h5 file
   --GQL=<GQL> True or False
-  --lambda=<lambda> Specify an integer cutoff to seperate low and high modes
+  --Lambda=<Lambda> Specify an integer cutoff to seperate low and high modes
 """
 
 import numpy as np
@@ -27,7 +27,10 @@ import logging
 from docopt import docopt
 import os
 import subprocess
-from mpi4py import MPI
+from mpi4py import 
+from GQLProjection import GQLProjection
+
+de.operators.parsables["Project"] = GQLProjection
 
 comm=MPI.COMM_WORLD
 rank=comm.Get_rank()
@@ -36,7 +39,8 @@ args=docopt(__doc__)
 Re1=float(args['--re'])
 eta=np.float(args['--eta'])
 Gamma = int(args['--ar'])
-lmda = int(args['--lambda'])
+Lambda_z = int(args['--Lambda_z'])
+Lambda_theta = int(args['--Lambda_theta'])
 mesh_1 = int(args['--mesh_1'])
 mesh_2 = int(args['--mesh_2'])
 m1 = int(args['--m'])
@@ -111,11 +115,7 @@ logger.info("Taylor Number:{:.2e}, Ro^(-1):{:.2e}".format(Ta,Ro_inv))
 
 logger.info("Lz set to {:.6e}".format(Lz))
 
-#set up problem
-if GQL:
-    variables = ['u','ur','v','vr','w','wr','p','u_h','u_l','v_l','v_h','w_l','w_h']
-else:
-    variables = ['u','ur','v','vr','w','wr','p']
+variables = ['u','ur','v','vr','w','wr','p']
 
 #domain
 z_basis = de.Fourier(  'z', nz, interval=[0., Lz], dealias=dealias)
@@ -137,6 +137,7 @@ problem.parameters['nu']=nu
 problem.parameters['R1']=R1
 problem.parameters['R2']=R2
 problem.parameters['pi']=np.pi
+problem.parameters['cutoff']=[Lambda_z, Lambda_theta]
 
 
 #Substitutions
@@ -185,13 +186,19 @@ problem.substitutions['Lap_r'] = "Lap_s(u, ur) - u - 2*dtheta(v)"
 problem.substitutions['Lap_t'] = "Lap_s(v, vr) - v + 2*dtheta(u)"
 problem.substitutions['Lap_z'] = "Lap_s(w, wr)"
 
-
 # substitutions
 if GQL:
 
     # substitutions for projecting onto the low and high modes
-    problem.substitutions['Project_high(A)'] = ""
-    problem.substitutions['Project_low(A)'] = ""
+    problem.substitutions['Project_high(A)'] = "Project(A,cutoff,'h')"
+    problem.substitutions['Project_low(A)'] = "Project(A,cutoff,'l')"
+
+    problem.substitutions['u_l'] = "Project_low(u)"
+    problem.substitutions['u_h'] = "Project_high(u)"
+    problem.substitutions['v_l'] = "Project_low(v)"
+    problem.substitutions['v_h'] = "Project_high(v)"
+    problem.substitutions['w_l'] = "Project_low(w)"
+    problem.substitutions['w_h'] = "Project_high(w)"
     
     # r momentum (GQL)
     problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - Project_high(r*r*u_h*dr(u_l)+ r*v_h*dtheta(u_l) + r*r*w_h*dz(u_l) - r*v_h*v_l + r*r*u_l*dr(u_h) +r*v_l*dtheta(u_h) + r*r*w_l*dz(u_h) - r*v_h*v_l) - Project_low(r*r*u_h*dr(u_h)+ r*v_h*dtheta(u_h) + r*r*w_h*dz(u_h) - r*v_h*v_h + r*r*u_l*dr(u_l) + r*v_l*dtheta(u_l) + r*r*w_l*dz(u_l) - r*v_l*v_l)")
@@ -202,8 +209,6 @@ if GQL:
     # z momentum (GQL)
     problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = - Project_high(r*r*u_h*dr(w_l) + r*v_h*dtheta(w_l) + r*r*w_h*dz(w_l) + r*r*u_l*dr(w_h) + r*v_l*dtheta(w_h) + r*r*w_l*dz(w_h)) - Project_low(r*r*u_h*dr(w_h) + r*v_h*dtheta(w_h) + r*r*w_h*dz(w_h) + r*r*u_l*dr(w_l) + r*v_l*dtheta(w_l) + r*r*w_l*dz(w_l))")
 
-
-
 else:
     
     # DNS nonlinear terms
@@ -212,36 +217,19 @@ else:
     problem.substitutions['UdotGrad_t'] = "UdotGrad_s(v, vr) + r*u*v"
     problem.substitutions['UdotGrad_z'] = "UdotGrad_s(w, wr)"
 
-#equations
+    # momentum equations
+    problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
+    problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
+    problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
 
 #continuity
 problem.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
-
-#momentum (r)
-# DNS
-# problem.add_equation("r*r*dt(u) - nu*Lap_r - 2*r*v0*v + r*v0*dtheta(u) + r*r*dr(p) = r*v0*v0 - UdotGrad_r")
-
-
-
-#momentum (theta)
-# DNS
-# problem.add_equation("r*r*dt(v) - nu*Lap_t + r*r*dv0dr*u + r*v0*u + r*v0*dtheta(v) + r*dtheta(p)  = -UdotGrad_t  ")
-
-#momentum (z)
-# DNS
-# problem.add_equation("r*r*dt(w) - nu*Lap_z + r*r*dz(p) + r*v0*dtheta(w) = -UdotGrad_z")
-
 
 #Auxillilary equations
 problem.add_equation("ur - dr(u) = 0")
 problem.add_equation("vr - dr(v) = 0")
 problem.add_equation("wr - dr(w) = 0")
 
-
-if GQL:
-    problem.add_equation("ur - dr(u_h) - dr(u_l) = 0")
-    problem.add_equation("vr - dr(v_h) - dr(v_l) = 0")
-    problem.add_equation("wr - dr(w_h) - dr(w_l) = 0")
 
 #Boundary Conditions
 problem.add_bc("left(u) = 0")
