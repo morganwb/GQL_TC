@@ -1,21 +1,21 @@
 """
 
 Usage:
-  taylor_couette_3d_GQL.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restat_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> --GQL=<GQL> [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
-  taylor_couette_3d.py -h |--help
+  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> --GQL=<GQL> [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
+  taylor_couette_3d.py
 
 Options:
-  -h --help
   --re=<reynolds>  Reynolds number for simulation
   --eta=<eta>      Eta - ratio of R1/R2
-  --m=<initial_m   M1 mode to begin initial conditions
+  --m=<initial_m>   M1 mode to begin initial conditions
   --ar=<Gamma>     Aspect ratio (height/width)
   --mesh1=<mesh_1> First mesh core count
   --mesh2=<mesh_2> Second mesh core count
   --restart=<restart> True or False
   --restart_file=<restart_file> Point to a merged snapshots_s1.h5 file
   --GQL=<GQL> True or False
-  --Lambda=<Lambda> Specify an integer cutoff to seperate low and high modes
+  --Lambda_z=<Lambda_z> Specify an integer cutoff to seperate low and high modes for z
+  --Lambda_theta=<Lambda_theta> Specify an integer cutoff to seperate low and high modes for theta
 """
 
 import numpy as np
@@ -27,10 +27,10 @@ import logging
 from docopt import docopt
 import os
 import subprocess
-from mpi4py import 
+from mpi4py import MPI
 from GQLProjection import GQLProjection
 
-de.operators.parsables["Project"] = GQLProjection
+de.operators.parseables["Project"] = GQLProjection
 
 comm=MPI.COMM_WORLD
 rank=comm.Get_rank()
@@ -80,7 +80,7 @@ eta_string = "{:.4e}".format(eta).replace(".","-")
 
 
 if GQL:
-    root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}_GQL_lambda_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr,lmda)
+    root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}_GQL_Lambdaz_{}_Lambdat_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr,Lambda_z, Lambda_theta)
 else:
     root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
 
@@ -137,8 +137,6 @@ problem.parameters['nu']=nu
 problem.parameters['R1']=R1
 problem.parameters['R2']=R2
 problem.parameters['pi']=np.pi
-problem.parameters['cutoff']=[Lambda_z, Lambda_theta]
-
 
 #Substitutions
 
@@ -190,8 +188,8 @@ problem.substitutions['Lap_z'] = "Lap_s(w, wr)"
 if GQL:
 
     # substitutions for projecting onto the low and high modes
-    problem.substitutions['Project_high(A)'] = "Project(A,cutoff,'h')"
-    problem.substitutions['Project_low(A)'] = "Project(A,cutoff,'l')"
+    problem.substitutions['Project_high(A)'] = "Project(A,[{:d},{:d}],'h')".format(Lambda_z, Lambda_theta)
+    problem.substitutions['Project_low(A)'] = "Project(A,[{:d},{:d}],'l')".format(Lambda_z, Lambda_theta)
 
     problem.substitutions['u_l'] = "Project_low(u)"
     problem.substitutions['u_h'] = "Project_high(u)"

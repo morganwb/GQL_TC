@@ -14,6 +14,7 @@ class GQLProjection(Operator, FutureField):
         arg = Operand.cast(arg)
         super().__init__(arg,**kw)
         self.cutoff = cutoff
+
         
         # by default, execute GQL on all but the last dimension
         if not dim:
@@ -21,17 +22,22 @@ class GQLProjection(Operator, FutureField):
         else:
             self.dim = dim
         
-        local_coeff = domain.all_elements()
-        low_mask = np.ones(domain.local_coeff_shape, dtype='bool')
+        local_coeff = self.domain.all_elements()
+        low_mask = np.ones(self.domain.local_coeff_shape, dtype='bool')
 
         for i in range(self.dim):
-            low_mask &= (np.abs(coeff[i]) <= cutoff[i])
+            low_mask &= (np.abs(local_coeff[i]) <= cutoff[i])
         if subspace == 'high' or subspace == 'h':
             self.mask = ~low_mask
-        elif subspace == 'low' or 'subspace' == 'l':
+            subspace_name = 'h'
+        elif subspace == 'low' or subspace == 'l':
             self.mask = low_mask
+            subspace_name = 'l'
         else:
             raise ValueError("Subspace must be high/h or low/l, not {}".format(subspace))
+
+        cutoff_str = ",".join([str(i) for i in cutoff]) 
+        self.name = 'Proj[({}),{}]'.format(cutoff_str,subspace_name)
 
     def meta_constant(self, axis):
         # Preserve constancy
