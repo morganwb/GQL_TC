@@ -39,13 +39,17 @@ args=docopt(__doc__)
 Re1=float(args['--re'])
 eta=np.float(args['--eta'])
 Gamma = int(args['--ar'])
-Lambda_z = int(args['--Lambda_z'])
-Lambda_theta = int(args['--Lambda_theta'])
+print(args['--GQL'])
+GQL = bool(args['--GQL'])
+print(GQL)
+if GQL==True:
+    Lambda_z = int(args['--Lambda_z'])
+    Lambda_theta = int(args['--Lambda_theta'])
 mesh_1 = int(args['--mesh_1'])
 mesh_2 = int(args['--mesh_2'])
 m1 = int(args['--m'])
 restart = bool(args['--restart'])
-GQL = bool(args['--GQL'])
+
 root = logging.root
 for h in root.handlers:
     h.setLevel("INFO")
@@ -93,7 +97,7 @@ if rank==0:
         logger.info('Use restart, rename existing folder, or change parameters')
         #subprocess.call(['analysis_scripts/./kill_script.sh'])
 sim_name=path
-
+restart=False
 
 #derived parameters
 R1 = eta/(1. - eta)
