@@ -1,7 +1,7 @@
 """
 
 Usage:
-  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> --GQL=<GQL> [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
+  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> [--GQL=<GQL>] [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
   taylor_couette_3d.py
 
 Options:
@@ -39,10 +39,10 @@ args=docopt(__doc__)
 Re1=float(args['--re'])
 eta=np.float(args['--eta'])
 Gamma = int(args['--ar'])
-print(args['--GQL'])
-GQL = bool(args['--GQL'])
-print(GQL)
-if GQL==True:
+GQL = args['--GQL']
+
+if GQL!=None:
+    GQL=False
     Lambda_z = int(args['--Lambda_z'])
     Lambda_theta = int(args['--Lambda_theta'])
 mesh_1 = int(args['--mesh_1'])
