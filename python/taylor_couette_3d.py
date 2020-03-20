@@ -42,7 +42,7 @@ Gamma = int(args['--ar'])
 GQL = args['--GQL']
 
 if GQL!=None:
-    GQL=False
+    GQL=True
     Lambda_z = int(args['--Lambda_z'])
     Lambda_theta = int(args['--Lambda_theta'])
 mesh_1 = int(args['--mesh_1'])
