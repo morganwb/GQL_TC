@@ -25,7 +25,7 @@ mu = 0.
 # Import .h5 file passed to script 
 datafile = h5py.File(filename,'r')
 
-angular_mom_theta_avg = datafile['tasks/Angular Momentum'][-1,0,:,:].mean(axis=0)
+r_vs_v_plane_avg = datafile['tasks/v_tot'][-1,0,:,:].mean(axis=0)
 
 r = datafile['scales/r/1.0'][:]
 
@@ -36,10 +36,8 @@ B = eta*(1-mu)/((1-eta)*(1-eta**2))
 v0 = A*r + B/r
 
 # Create plot
-plt.title('Angular Momentum')
-plot_set = angular_mom_theta_avg
-plt.plot(r,plot_set+(v0*r))
-plt.plot(r,(v0*r))
+plt.title('r vs v plane average')
+plt.plot(r,r_vs_v_plane_avg)
 #plt.scatter([7.2607308623184235,7.67233758246426],[4.793209944824717,2.6040122651068316],label='Marcus 84 B')
 plt.legend()
 plt.tight_layout()
