@@ -164,8 +164,8 @@ problem.substitutions['dv0dr'] = 'A - B/(r*r)'  #d/dr of background forcing
 
 problem.substitutions['v_tot'] = 'v0 + v'       #total velocity in v direction. (azimuthal)
 problem.substitutions['vel_sum_sq'] = 'u**2 + v_tot**2 + w**2'
-problem.substitutions['plane_avg_r(A)'] = 'integ(integ(A, "z"),"theta")/(r*Lz)'
-problem.substitutions['plane_avg_z(A)'] = 'integ(integ(A, "r"),"theta")/Lz'
+problem.substitutions['plane_avg_r(A)'] = 'integ(integ(r*A, "z"),"theta")/(2*pi*r*Lz)'
+#problem.substitutions['plane_avg_z(A)'] = 'integ(integ(A, "r"),"theta")/Lz'
 problem.substitutions['vol_avg(A)']   = 'integ(r*A)/(pi*(R2**2 - R1**2)*Lz)'
 problem.substitutions['probe(A)'] = 'interp(A,r={}, theta={}, z={})'.format(R1 + 0.5, 0., Lz/2.)
 
