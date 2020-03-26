@@ -21,6 +21,17 @@ prefix = vars(args)['folder_prefix']
 
 prefix_ast = str(prefix) + "*"
 
+eta = 0.875
+mu = 0.
+
+# define couette flow
+def couette(r):
+    A = (1/eta - 1.)*(mu-eta**2)/(1-eta**2)
+    B = eta*(1-mu)/((1-eta)*(1-eta**2))
+    v0 = A*r + B/r
+    return v0
+
+
 for folder in glob.glob(prefix_ast):
     print(folder)
     slices = folder + "/slices/slices_s1.h5"
@@ -29,6 +40,7 @@ for folder in glob.glob(prefix_ast):
     r_vs_v_plane_avg = datafile['tasks/v_tot'][-1,0,:,:].mean(axis=0)
     print(r_vs_v_plane_avg)
     r = datafile['scales/r/1.0'][:]
+    v0 = couette(r)
     plt.plot(r,r_vs_v_plane_avg,label=folder[20:])
 plt.title('r vs v_total plane average')
 plt.legend()
