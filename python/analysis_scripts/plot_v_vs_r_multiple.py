@@ -10,6 +10,7 @@ import h5py
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+
 import os
 import glob
 
@@ -30,21 +31,26 @@ def couette(r):
     B = eta*(1-mu)/((1-eta)*(1-eta**2))
     v0 = A*r + B/r
     return v0
+folders = sorted(glob.glob(prefix_ast), key=lambda folder: int(folder.split("_")[-1]))
+folders.insert(0,folders[-1])
+del folders[-1]
 
-
-for folder in glob.glob(prefix_ast):
-    print(folder)
+for folder in folders:
     slices = folder + "/slices/slices_s1.h5"
-    print(slices)
     datafile = h5py.File(slices,'r')
     r_vs_v_plane_avg = datafile['tasks/v_tot'][-1,0,:,:].mean(axis=0)
-    print(r_vs_v_plane_avg)
     r = datafile['scales/r/1.0'][:]
-    v0 = couette(r)
-    plt.plot(r,r_vs_v_plane_avg,label=folder[20:])
-plt.title('r vs v_total plane average')
+    if "GQL" not in folder:
+        plt.plot(r,r_vs_v_plane_avg,label="DNS", linewidth=3)
+    else:
+        plt.plot(r,r_vs_v_plane_avg,label="GQL, $\Lambda = " + folder.split("_")[-1] + "$")
+
 plt.legend()
+
+plt.xlabel("$r$")
+plt.ylabel("Avg. V velocity")
 plt.tight_layout()
+#plt.style.use('prl')
 plt.show()
-plot_file_name = 'radial_profile_multiple_prefix.png'
+plot_file_name = 'radial_profile_multiple.png'
 plt.savefig(plot_file_name, dpi=300)
