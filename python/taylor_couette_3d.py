@@ -268,14 +268,16 @@ if restart==True:
 elif willis==True:
     ## Willis & Bahrenghi ICs
     logger.info("Using initial conditions from Willis's PhD thesis")
+
+    A0 = 1e-3
     #m1=3
     u.set_scales(domain.dealias, keep_data=False)
     w.set_scales(domain.dealias, keep_data=False)
     x = r - r_in
     kz = 2*np.pi/Lz
     logger.info('kz : {}'.format(kz))
-    u['g'] = kz**2 * x**2 * (1-x)**2 * np.sin(kz*z)
-    w['g'] = kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta)
+    u['g'] = A0 * kz**2 * x**2 * (1-x)**2 * np.sin(kz*z)
+    w['g'] = A0 * kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta)
     u.differentiate('r',out=ur)
     w.differentiate('r',out=wr)
 else:
@@ -296,7 +298,7 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 10*period
+solver.stop_sim_time = 2*period
 solver.stop_wall_time = 24*3600.#np.inf
 solver.stop_iteration = np.inf
 
@@ -329,7 +331,7 @@ snapshots.add_system(solver.state)
 #Analysis files
 Jeffs_analysis=True
 if Jeffs_analysis:
-    analysis_slice = solver.evaluator.add_file_handler(sim_name+"/slices", max_writes=20, parallel=False)
+    analysis_slice = solver.evaluator.add_file_handler(sim_name+"/slices", parallel=False, sim_dt=output_time_cadence)
     analysis_slice.add_task("interp(u,r={})".format(midpoint), name="u_slice",scales=4)
     analysis_slice.add_task("interp(v,r={})".format(midpoint), name="v_slice",scales=4)
     analysis_slice.add_task("interp(w,r={})".format(midpoint), name="w_slice",scales=4)
@@ -351,7 +353,7 @@ if Jeffs_analysis:
     analysis_spectra.add_task("v", name="vc", layout="c")
     analysis_spectra.add_task("w", name="wc", layout="c")
     
-    analysis_scalar = solver.evaluator.add_file_handler(sim_name+"/scalar", parallel=False)
+    analysis_scalar = solver.evaluator.add_file_handler(sim_name+"/scalar", parallel=False,sim_dt=scalar_output_time_cadence)
     analysis_scalar.add_task("integ(r*KE)", name="KE")
     analysis_scalar.add_task("vol_avg(u_rms)", name="u_rms")
     analysis_scalar.add_task("vol_avg(v_rms)", name="v_rms")
