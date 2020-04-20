@@ -1,5 +1,4 @@
 """
-
 Usage:
   taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> [--GQL=<GQL>] [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
   taylor_couette_3d.py
@@ -277,7 +276,7 @@ elif willis==True:
     kz = 2*np.pi/Lz
     logger.info('kz : {}'.format(kz))
     u['g'] = A0 * kz**2 * x**2 * (1-x)**2 * np.sin(kz*z)
-    w['g'] = A0 * kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta)
+    w['g'] = A0 *( kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta))
     u.differentiate('r',out=ur)
     w.differentiate('r',out=wr)
 else:
@@ -298,9 +297,9 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 2*period
+solver.stop_sim_time = 6*period
 solver.stop_wall_time = 24*3600.#np.inf
-solver.stop_iteration = np.inf
+solver.stop_iteration = 2000
 
 #CFL stuff
 CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
@@ -347,11 +346,10 @@ if Jeffs_analysis:
     
     analysis_profile = solver.evaluator.add_file_handler(sim_name+"/profiles", max_writes=20, parallel=False)
 
-
     analysis_spectra = solver.evaluator.add_file_handler(sim_name+"/spectra", max_writes=20, parallel=False)
-    analysis_spectra.add_task("u", name="uc", layout="c")
-    analysis_spectra.add_task("v", name="vc", layout="c")
-    analysis_spectra.add_task("w", name="wc", layout="c")
+    analysis_spectra.add_task("interp(u, r={})".format(midpoint), name="uc", layout="c")
+    analysis_spectra.add_task("interp(v, r={})".format(midpoint), name="vc", layout="c")
+    analysis_spectra.add_task("interp(w, r={})".format(midpoint), name="wc", layout="c")
     
     analysis_scalar = solver.evaluator.add_file_handler(sim_name+"/scalar", parallel=False,sim_dt=scalar_output_time_cadence)
     analysis_scalar.add_task("integ(r*KE)", name="KE")
@@ -361,6 +359,7 @@ if Jeffs_analysis:
     analysis_scalar.add_task("vol_avg(Re_rms)", name="Re_rms")
     analysis_scalar.add_task("probe(w)", name="w_probe")
     analysis_scalar.add_task("integ(r*enstrophy)", name="enstrophy")
+    analysis_scalar.add_task("integ(r*KE) - integ(v0, 'r')", name="pertubation_KE")
 
 
 
