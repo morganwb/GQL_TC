@@ -277,7 +277,7 @@ elif willis==True:
     kz = 2*np.pi/Lz
     logger.info('kz : {}'.format(kz))
     u['g'] = A0 * kz**2 * x**2 * (1-x)**2 * np.sin(kz*z)
-    w['g'] = A0 * kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta)
+    w['g'] = A0 * (kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta))
     u.differentiate('r',out=ur)
     w.differentiate('r',out=wr)
 else:
