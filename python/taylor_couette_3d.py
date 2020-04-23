@@ -346,7 +346,7 @@ if Jeffs_analysis:
     
     analysis_profile = solver.evaluator.add_file_handler(sim_name+"/profiles", max_writes=20, parallel=False)
 
-    analysis_spectra = solver.evaluator.add_file_handler(sim_name+"/spectra", max_writes=20, parallel=False)
+    analysis_spectra = solver.evaluator.add_file_handler(sim_name+"/spectra", max_writes=20, parallel=False, sim_dt=output_time_cadence)
     analysis_spectra.add_task("interp(u, r={})".format(midpoint), name="uc", layout="c")
     analysis_spectra.add_task("interp(v, r={})".format(midpoint), name="vc", layout="c")
     analysis_spectra.add_task("interp(w, r={})".format(midpoint), name="wc", layout="c")

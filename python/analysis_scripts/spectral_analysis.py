@@ -30,10 +30,10 @@ folders = sorted(glob.glob(prefix), key=lambda folder: int(folder.split("_")[-1]
 for folder in folders:
     filename = folder + "/spectra/spectra_s1.h5"
     datafile = h5py.File(filename,'r')
-    coeff = datafile['tasks/uc']
+    coeff = datafile['tasks/vc']
     print(coeff.shape)
     plot_axes = [1, 2]
-    slices = [0, slice(None), slice(None), 0]
+    slices = [-1, slice(None), slice(None), 0]
     plot_tools.plot_bot(coeff, plot_axes, slices, func=abs_sqr)
     plt.tight_layout()
     plt.savefig("spectral_plot_" + str(folder.split("_")[-1]) + ".png", dpi=300)
