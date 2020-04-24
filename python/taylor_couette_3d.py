@@ -1,13 +1,14 @@
 """
 
 Usage:
-  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> [--GQL=<GQL>] [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>]
+  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--mu=<mu>] [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> [--GQL=<GQL>] [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>] [--willis] [--run_note=<run_note>] [--theta_symmetry]
   taylor_couette_3d.py
 
 Options:
   --re=<reynolds>  Reynolds number for simulation
   --eta=<eta>      Eta - ratio of R1/R2
-  --m=<initial_m>   M1 mode to begin initial conditions
+  --m=<initial_m>  M1 mode to begin initial conditions
+  --mu=<mu>        mu = Omega2/Omega1 [default: 0]
   --ar=<Gamma>     Aspect ratio (height/width)
   --mesh1=<mesh_1> First mesh core count
   --mesh2=<mesh_2> Second mesh core count
@@ -16,6 +17,9 @@ Options:
   --GQL=<GQL> True or False
   --Lambda_z=<Lambda_z> Specify an integer cutoff to seperate low and high modes for z
   --Lambda_theta=<Lambda_theta> Specify an integer cutoff to seperate low and high modes for theta
+  --willis  Use Willis ICs [default: False]  
+  --run_note=<run_note>  Note to add to run directory name [default: None]
+  --theta_symmetry  Restrict theta to 2pi/m1 [default: False]
 """
 
 import numpy as np
@@ -29,6 +33,9 @@ import os
 import subprocess
 from mpi4py import MPI
 from GQLProjection import GQLProjection
+from filter_field import filter_field
+
+logger = logging.getLogger(__name__)
 
 de.operators.parseables["Project"] = GQLProjection
 
@@ -38,8 +45,12 @@ rank=comm.Get_rank()
 args=docopt(__doc__)
 Re1=float(args['--re'])
 eta=np.float(args['--eta'])
-Gamma = int(args['--ar'])
+mu = np.float(args['--mu'])
+Gamma = float(args['--ar'])
 GQL = args['--GQL']
+
+willis=args['--willis']
+theta_symmetry = args['--theta_symmetry']
 
 if GQL!=None:
     GQL=True
@@ -49,8 +60,17 @@ mesh_1 = int(args['--mesh_1'])
 mesh_2 = int(args['--mesh_2'])
 m1 = int(args['--m'])
 restart = bool(args['--restart'])
+run_note = args['--run_note']
+if run_note == 'None':
+    run_note = None
 
-logger = logging.getLogger(__name__)
+Ltheta = 2*np.pi
+if theta_symmetry:
+    logger.info("Running with symmetry restricted theta domain.")
+    try:
+        Ltheta /= m1
+    except ZeroDivisionError:
+        raise ZeroDivisionError("m1 is zero. Symmmetry restriction not possible")
 
 if restart==True:
     restart_file = str(args['--restart_file'])
@@ -66,23 +86,32 @@ scale [V] = R1 Omega1
 Default parameters from Barenghi (1991, J. Comp. Phys.).
 """
 
-mu = 0 
 #eta = 0.8770
 # ~ Re1 = 80
 #Lz = 2.0074074463832545
 Sc = 1
 dealias = 3/2
-nz=64
-ntheta=64
+nz=32
+ntheta=32
 nr=32
 
-eta_string = "{:.4e}".format(eta).replace(".","-")
+#eta_string = "{:.4e}".format(eta).replace(".","-")
 
 
 if GQL:
-    root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}_GQL_Lambdaz_{}_Lambdat_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr,Lambda_z, Lambda_theta)
+    root_folder = "TC_3d_re_{:e}_eta_{:e}_Gamma_{:e}_M1_{:d}_{:d}_{:d}_{:d}_GQL_Lambdaz_{:d}_Lambdat_{:d}/".format(Re1,eta,Gamma,m1,nz,ntheta,nr,Lambda_z, Lambda_theta)
 else:
-    root_folder = "TC_3d_re_{}_eta_{}_Gamma_{}_M1_{}_{}_{}_{}/".format(Re1,eta_string,Gamma,m1,nz,ntheta,nr)
+    root_folder = "TC_3d_re_{:e}_eta_{:e}_Gamma_{:e}_M1_{:d}_{:d}_{:d}_{:d}/".format(Re1,eta,Gamma,m1,nz,ntheta,nr)
+
+if willis:
+    root_folder = root_folder.strip("/")
+    root_folder += "_willis/"
+if run_note:
+    root_folder = root_folder.strip("/")
+    root_folder += "_{}/".format(run_note)
+if theta_symmetry:
+    root_folder = root_folder.strip("/")
+    root_folder += "_theta_symmetry/"
 
 path = 'results/'+root_folder
 if rank==0:
@@ -102,15 +131,14 @@ Omega1 = 1/R1
 Omega2 = mu*Omega1
 nu = R1 * Omega1/Re1
 midpoint = R1 + (R2-R1) / 2
-Lz = Gamma * (R2 - R1)
+Lz = Gamma 
 
 #Taylor Number
 Ta = ((1+eta)**4/(64*eta**2) ) * ( (R2-R1)**2 * (R2+R1)**2 * (Omega1-Omega2)**2 ) / nu**2 #Grossman lohse
 Ta1 = (2*Omega1**2*(R2-R1)**4*eta**2 ) / (nu**2 *(11-eta**2)  )
 Ro_inv = (2 * Omega2 * (R2-R1) ) /  (np.abs(Omega1-Omega2)*R1 )
 
-
-logger.info("Re:{:.3e}, eta:{:.4e}".format(Re1,eta))
+logger.info("Re:{:.3e}, eta:{:.4e}, mu:{:.4e}".format(Re1,eta,mu))
 logger.info("Taylor Number:{:.2e}, Ro^(-1):{:.2e}".format(Ta,Ro_inv))
 
 logger.info("Lz set to {:.6e}".format(Lz))
@@ -119,8 +147,8 @@ variables = ['u','ur','v','vr','w','wr','p']
 
 #domain
 z_basis = de.Fourier(  'z', nz, interval=[0., Lz], dealias=dealias)
-theta_basis = de.Fourier('theta', ntheta, interval=[0., 2*np.pi], dealias=dealias)
-r_basis = de.Chebyshev('r', nr, interval=[R1, R2], dealias=3/2)
+theta_basis = de.Fourier('theta', ntheta, interval=[0., Ltheta], dealias=dealias)
+r_basis = de.Chebyshev('r', nr, interval=[R1, R2], dealias=dealias)
 
 bases = [z_basis, theta_basis, r_basis]
 # ~ bases = t_bases + r_basis
@@ -256,12 +284,12 @@ z = problem.domain.grid(0,scales=problem.domain.dealias)
 theta = problem.domain.grid(1,scales=problem.domain.dealias)
 r_in = R1
 
-willis=True
+
 
 if restart==True:
 	logger.info("Restarting from file {}".format(restart_file))
 	write, last_dt = solver.load_state(restart_file, -1)
-elif willis==True:
+elif willis:
     ## Willis & Bahrenghi ICs
     logger.info("Using initial conditions from Willis's PhD thesis")
 
@@ -278,28 +306,39 @@ elif willis==True:
     w.differentiate('r',out=wr)
 else:
     # Random perturbations to v in (r, z)
-    A0 = 1e-3
-    logger.info("Using axisymmetric noise initial conditions in v with amplitude A0 = {}.".format(A0))
-    v.set_scales(domain.dealias, keep_data=False)
     gshape = domain.dist.grid_layout.global_shape(scales=domain.dealias)
     slices = domain.dist.grid_layout.slices(scales=domain.dealias)
     rand = np.random.RandomState(seed=42)
-    noise = rand.standard_normal(gshape)
-    slices_axi = [slices[0], 0, slices[-1]]
-    noise = noise[slices_axi][:, None, :] * np.ones(np.shape(noise[slices_axi]))
-    v['g'] = A0 * noise[slices] * np.sin(np.pi * (r - r_in))
+    A0 = 1e-3
+    logger.info("Using incompressible noise initial conditions in (u, v, w) with amplitude A0 = {}.".format(A0))
+    Ar = domain.new_field()
+    Atheta = domain.new_field()
+    Az = domain.new_field()
+    for A in [Ar, Atheta, Az]:
+        A.set_scales(domain.dealias, keep_data=False)
+        A['g'] = rand.standard_normal(gshape)[slices]*np.sin(np.pi*(r - r_in))
+        filter_field(A)
+    for vel in [u, v, w]:
+        vel.set_scales(domain.dealias, keep_data=False)
+    u['g'] = A0 * (Az.differentiate('theta')['g']/r - Atheta.differentiate('z')['g'])
+    v['g'] = A0 * (Ar.differentiate('z')['g'] - Az.differentiate('r')['g'])
+    w['g'] = A0 * (Atheta['g'] + r*Atheta.differentiate('r')['g'] - Ar.differentiate('theta')['g'])/r
+    # kz = 2*np.pi/Lz
+    # v['g'] = A0 * np.sin(np.pi*(r-r_in)) * np.sin(kz*z)
+    # w['g'] = A0 * np.sin(np.pi*(r-r_in)) * np.sin(m1*theta)
+    u.differentiate('r', out=ur)
     v.differentiate('r', out=vr)
-
+    w.differentiate('r', out=wr)
 
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 2*period
+solver.stop_sim_time = 10*period
 solver.stop_wall_time = 24*3600.#np.inf
 solver.stop_iteration = np.inf
 
 #CFL stuff
-CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1)
+CFL = flow_tools.CFL(solver, initial_dt=1e-2, cadence=5, safety=0.3,max_change=1.5, min_change=0.5,max_dt=1, threshold=0.1)
 CFL.add_velocities(('u', 'v', 'w'))
 
 # Flow properties
