@@ -370,7 +370,11 @@ while solver.ok:
         logger.info('Max |divu| = {}'.format(flow.max('divu')))
         logger.info('Total KE per Lz = {}'.format(geo_factor*flow.max('KE')/Lz))
         logger.info('Total enstrophy per Lz = {}'.format(geo_factor*flow.max('enstrophy')/Lz))
-        #gc.collect()
+
+        # Hermitian projection
+        for field in solver.state.fields:
+            field.require_grid_space()
+
     dt = CFL.compute_dt()
 
 end_time = time.time()
