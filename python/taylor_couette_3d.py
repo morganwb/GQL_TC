@@ -50,10 +50,6 @@ mesh_2 = int(args['--mesh_2'])
 m1 = int(args['--m'])
 restart = bool(args['--restart'])
 
-root = logging.root
-for h in root.handlers:
-    h.setLevel("INFO")
-
 logger = logging.getLogger(__name__)
 
 if restart==True:
