@@ -1,15 +1,15 @@
 """
 Usage:
-  tc_eigenvalue_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> --k=<k> [--mu=<mu>] [--ar=<Gamma>] [--alpha=<alpha>]
+  tc_eigenvalue_3d.py [--re=<reynolds> --eta=<eta> --m=<initial_m> --k=<k> --mu=<mu> --ar=<Gamma> --alpha=<alpha>]
 
 Options:
-  --re=<reynolds>  Reynolds number for simulation
-  --eta=<eta>      Eta - ratio of R1/R2
-  --m=<initial_m>  m mode
-  --k=<k>          k mode
+  --re=<reynolds>  Reynolds number for simulation [default: 80]
+  --eta=<eta>      Eta - ratio of R1/R2 [default: 0.692520775623]
+  --m=<initial_m>  m mode [default: 0]
+  --k=<k>          k mode [default: 1]
   --mu=<mu>        mu = Omega2/Omega1 [default: 0]
   --ar=<Gamma>     Aspect ratio (height/width) [default: 3]
-  --alpha=<alpha>  z wavenumber [default: 0]
+  --alpha=<alpha>  z wavenumber [default: 3.13]
 """
 
 import numpy as np
@@ -50,13 +50,6 @@ scale [V] = R1 Omega1
 
 Default parameters from Barenghi (1991, J. Comp. Phys.).
 """
-
-Sc = 1
-dealias = 3/2
-
-#eta_string = "{:.4e}".format(eta).replace(".","-")
-
-
 #derived parameters
 R1 = eta/(1. - eta)
 R2 = 1./(1-eta)
@@ -149,7 +142,6 @@ problem.add_equation("r*ur + u + dtheta(v) + r*dz(w) = 0")
 problem.add_equation("ur - dr(u) = 0")
 problem.add_equation("vr - dr(v) = 0")
 problem.add_equation("wr - dr(w) = 0")
-
 
 #Boundary Conditions
 problem.add_bc("left(u) = 0")
