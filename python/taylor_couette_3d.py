@@ -1,7 +1,7 @@
 """
 
 Usage:
-  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--mu=<mu>] [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> [--GQL=<GQL>] [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>] [--willis] [--run_note=<run_note>] [--theta_symmetry]
+  taylor_couette_3d.py --re=<reynolds> --eta=<eta> --m=<initial_m> [--mu=<mu>] [--ar=<Gamma>] [--restart=<restart>] [--restart_file=<restart_file>] --mesh_1=<mesh_1> --mesh_2=<mesh_2> [--GQL=<GQL>] [--Lambda_z=<Lambda_z>] [--Lambda_theta=<Lambda_theta>] [--willis] [--single_mode] [--run_note=<run_note>] [--theta_symmetry]
   taylor_couette_3d.py
 
 Options:
@@ -18,6 +18,7 @@ Options:
   --Lambda_z=<Lambda_z> Specify an integer cutoff to seperate low and high modes for z
   --Lambda_theta=<Lambda_theta> Specify an integer cutoff to seperate low and high modes for theta
   --willis  Use Willis ICs [default: False]  
+  --single_mode  Use single mode ICs [default: False]
   --run_note=<run_note>  Note to add to run directory name [default: None]
   --theta_symmetry  Restrict theta to 2pi/m1 [default: False]
 """
@@ -50,6 +51,7 @@ Gamma = float(args['--ar'])
 GQL = args['--GQL']
 
 willis=args['--willis']
+single_mode = args['--single_mode']
 theta_symmetry = args['--theta_symmetry']
 
 if GQL!=None:
@@ -106,6 +108,9 @@ else:
 if willis:
     root_folder = root_folder.strip("/")
     root_folder += "_willis/"
+elif single_mode:
+    root_folder = root_folder.strip("/")
+    root_folder += "_single_mode/"
 if run_note:
     root_folder = root_folder.strip("/")
     root_folder += "_{}/".format(run_note)
@@ -285,7 +290,7 @@ theta = problem.domain.grid(1,scales=problem.domain.dealias)
 r_in = R1
 
 
-
+A0 = 1e-3
 if restart==True:
 	logger.info("Restarting from file {}".format(restart_file))
 	write, last_dt = solver.load_state(restart_file, -1)
@@ -293,7 +298,7 @@ elif willis:
     ## Willis & Bahrenghi ICs
     logger.info("Using initial conditions from Willis's PhD thesis")
 
-    A0 = 1e-3
+
     #m1=3
     u.set_scales(domain.dealias, keep_data=False)
     w.set_scales(domain.dealias, keep_data=False)
@@ -304,12 +309,22 @@ elif willis:
     w['g'] = A0 * (kz * x**2 * (1-x)**2 * np.cos(kz*z)/r + 2*kz*np.cos(kz*z) * ((1-x)**2 * x - x**2 * (1 - x)) - (x**2 * (1 - x)**2)/r * m1 * np.cos(m1*theta))
     u.differentiate('r',out=ur)
     w.differentiate('r',out=wr)
+elif single_mode:
+    logger.info("using single-mode initial conditions with kz = 1, m = {}; amplitude {}".format(m1, A0))
+    kz = 2*np.pi/Lz
+    for vel in [v, w]:
+        vel.set_scales(domain.dealias, keep_data=False)
+
+    v['g'] = A0 * np.sin(np.pi*(r-r_in)) * np.sin(kz*z)
+    w['g'] = A0 * np.sin(np.pi*(r-r_in)) * np.sin(m1*theta)
+    v.differentiate('r', out=vr)
+    w.differentiate('r', out=wr)
 else:
     # Random perturbations to v in (r, z)
     gshape = domain.dist.grid_layout.global_shape(scales=domain.dealias)
     slices = domain.dist.grid_layout.slices(scales=domain.dealias)
     rand = np.random.RandomState(seed=42)
-    A0 = 1e-3
+
     logger.info("Using incompressible noise initial conditions in (u, v, w) with amplitude A0 = {}.".format(A0))
     Ar = domain.new_field()
     Atheta = domain.new_field()
@@ -333,7 +348,7 @@ else:
 #Setting Simulation Runtime
 omega1 = 1/eta - 1.
 period = 2*np.pi/omega1
-solver.stop_sim_time = 10*period
+solver.stop_sim_time = 2*period
 solver.stop_wall_time = 24*3600.#np.inf
 solver.stop_iteration = np.inf
 
