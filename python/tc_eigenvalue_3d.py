@@ -86,10 +86,9 @@ logger.info("Lz set to {:.6e}".format(Lz))
 variables = ['u','ur','v','vr','w','wr','p']
 
 #domain
-r_basis = de.Chebyshev('r', nr, interval=[R1, R2], dealias=dealias)
+r_basis = de.Chebyshev('r', nr, interval=[R1, R2])
 
 bases = [r_basis]
-# ~ bases = t_bases + r_basis
 domain = de.Domain(bases) 
 
 #problem
