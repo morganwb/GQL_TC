@@ -13,22 +13,13 @@ Options:
 """
 
 import numpy as np
-import h5py
-from dedalus.extras import flow_tools
 from dedalus import public as de
-import time
 import logging
 from docopt import docopt
-import os
-import subprocess
-from mpi4py import MPI
 from eigentools import Eigenproblem
 logger = logging.getLogger(__name__)
 
 nr = 32
-
-comm=MPI.COMM_WORLD
-rank=comm.Get_rank()
 
 args=docopt(__doc__)
 Re1=float(args['--re'])
@@ -67,7 +58,9 @@ else:
 #Ta1 = (2*Omega1**2*(R2-R1)**4*eta**2 ) / (nu**2 *(11-eta**2)  )
 A = (1/eta - 1.)*(mu-eta**2)/(1-eta**2)
 B = eta*(1-mu)/((1-eta)*(1-eta**2))
-Ta = -4*A*Omega1*Re1
+#Ta = -4*A*Omega1*Re1**2
+logger.info("-4*A = {}".format(-4*A))
+Ta = 64/9. * (Re1*eta/(1-eta))**2 * (1-mu)*(1-4*mu)
 #Ta = -4*Omega1**2 * R1**4 * Re1**2 * (1-mu)*(1-mu/eta**2)/(1-eta**2)**2
 Ro_inv = (2 * Omega2 * (R2-R1) ) /  (np.abs(Omega1-Omega2)*R1 )
 
@@ -154,9 +147,8 @@ problem.add_bc("right(w) = 0")
 
 ep = Eigenproblem(problem)
 
-ep.solve()
 growth, index, freq = ep.growth_rate({})
 
-logger.info("Growth rate = {}; frequency = {}".format(growth, freq))
+logger.info("Growth rate = {:16.15e}; frequency = {:16.15e}".format(growth, freq[0]))
 
 #ep.spectrum(spectype='hires')
